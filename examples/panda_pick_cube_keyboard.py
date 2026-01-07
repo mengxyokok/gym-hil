@@ -9,14 +9,16 @@ if __name__ == "__main__":
     # 创建环境
     env = gym.make("gym_hil/PandaPickCubeKeyboard-v0", render_mode="human")
     
+    # 创建dummy_action（键盘输入会自动覆盖）
+    action = np.zeros(env.action_space.shape[0], dtype=np.float32)
+
     
     # 重置环境
     obs, _ = env.reset()
     
     try:
         while True:
-
-
+            # action来自键盘输入（按Space激活干预模式后生效）
             obs, reward, terminated, truncated, info = env.step(action)
             
             # 检查是否成功
