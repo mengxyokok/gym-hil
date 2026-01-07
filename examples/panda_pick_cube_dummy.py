@@ -9,18 +9,24 @@ if __name__ == "__main__":
     # 创建环境
     env = gym.make("gym_hil/PandaPickCubeKeyboard-v0", render_mode="human")
     
-    # 创建dummy_action（键盘控制环境使用，实际控制通过键盘输入）
+    # 创建dummy_action，所有step只有一个target动作
     dummy_action = np.zeros(env.action_space.shape[0], dtype=np.float32)
-    if len(dummy_action) >= 4:
-        dummy_action[-1] = 1  # 设置gripper动作为"保持"
+
+    # 创建random_action，所有step只有一个target动作
+    random_action = env.action_space.sample()
+
+    action = random_action
     
     # 重置环境
     obs, _ = env.reset()
     
     try:
         while True:
-            # 使用dummy_action进行step
-            obs, reward, terminated, truncated, info = env.step(dummy_action)
+            # 创建random_action，每个step动作都随机
+            random_action = env.action_space.sample()
+            action = random_action
+
+            obs, reward, terminated, truncated, info = env.step(action)
             
             # 检查是否成功
             if info.get("succeed", False):
