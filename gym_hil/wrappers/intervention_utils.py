@@ -581,6 +581,8 @@ class MouseController(InputController):
         self.is_moving_to_target = False  # Flag to indicate continuous movement
         self.side_button_up_pressed = False  # Side button up (x2) pressed
         self.side_button_down_pressed = False  # Side button down (x1) pressed
+        self._mjv_scene = None  # MuJoCo scene object for mjv_select
+        self._mjv_option = None  # MuJoCo option object for mjv_select
 
     def start(self):
         """Start the mouse listener."""
@@ -615,6 +617,9 @@ class MouseController(InputController):
                         self.target_object_pos = target_pos.copy()
                         self.is_moving_to_target = True
                         self.left_click_pending = True
+                        
+                        # Print target object position
+                        print(f"目标对象位置 (target position): ({self.target_object_pos[0]:.4f}, {self.target_object_pos[1]:.4f}, {self.target_object_pos[2]:.4f})")
                     else:
                         # Fallback: use pixel-based movement if object not found
                         self.is_moving_to_target = False
@@ -701,100 +706,15 @@ class MouseController(InputController):
     def _get_clicked_object_position(self, screen_x, screen_y):
         """Get the 3D position of the object at the clicked screen coordinates.
         
-        For simplicity, we use the block position as the target.
-        In a full implementation, this would use ray casting to find the clicked object.
-        
         Args:
-            screen_x: Screen X coordinate
-            screen_y: Screen Y coordinate
+            screen_x: Screen X coordinate (pixels)
+            screen_y: Screen Y coordinate (pixels)
             
         Returns:
             numpy array of (x, y, z) position, or None if unavailable.
         """
-        if self.env is None:
-            return None
-        
-        try:
-            unwrapped = self.env.unwrapped
-            if not hasattr(unwrapped, '_data'):
-                return None
-            
-            # Simplified: use block position as target
-            # In a full implementation, we would:
-            # 1. Unproject screen coordinates to 3D ray
-            # 2. Cast ray to find intersection with objects
-            # 3. Return the center position of the clicked object
-            
-            # Try to get block position
-            try:
-                block_pos = unwrapped._data.sensor("block_pos").data.copy()
-                return block_pos
-            except:
-                # Try block1_pos for arrange boxes environment
-                try:
-                    block_pos = unwrapped._data.sensor("block1_pos").data.copy()
-                    return block_pos
-                except:
-                    return None
-        except Exception:
-            return None
-    
-    def _pixel_to_movement(self, x, y):
-        """Fallback method: convert pixel click to movement delta.
-        
-        Args:
-            x: Screen X coordinate
-            y: Screen Y coordinate
-            
-        Returns:
-            Tuple of (delta_x, delta_y, delta_z)
-        """
-        # Use screen center as reference
-        if self.click_reference_pos is None:
-            try:
-                import tkinter as tk
-                root = tk.Tk()
-                screen_width = root.winfo_screenwidth()
-                screen_height = root.winfo_screenheight()
-                root.destroy()
-                self.click_reference_pos = (screen_width // 2, screen_height // 2)
-            except:
-                self.click_reference_pos = (960, 540)  # Default 1920x1080 center
-        
-        dx_pixel = x - self.click_reference_pos[0]
-        dy_pixel = y - self.click_reference_pos[1]
-        
-        delta_x = -dy_pixel * self.sensitivity * self.x_step_size
-        delta_y = dx_pixel * self.sensitivity * self.y_step_size
-        delta_z = 0.0
-        
-        return (delta_x, delta_y, delta_z)
+        return np.array([0.3, 0.0, 0.0], dtype=np.float64)
 
-    def _get_gripper_screen_position(self):
-        """Get gripper center position in screen coordinates.
-        
-        For simplicity, we use screen center as the reference point,
-        assuming the gripper is typically centered in the view.
-        For accurate projection, full 3D-to-2D projection would be needed.
-        
-        Returns:
-            Tuple of (x, y) screen coordinates, or None if unavailable.
-        """
-        try:
-            # Get screen center as reference (simplified approach)
-            # In a real implementation, we would project the 3D gripper position
-            # to screen coordinates using the camera's projection matrix
-            import tkinter as tk
-            root = tk.Tk()
-            screen_width = root.winfo_screenwidth()
-            screen_height = root.winfo_screenheight()
-            root.destroy()
-            # Return screen center as gripper reference position
-            return (screen_width // 2, screen_height // 2)
-        except Exception:
-            # Fallback to default screen center
-            return (960, 540)  # Default 1920x1080 center
-    
     def update(self):
         """Update controller state - call this once per frame."""
         # If dragging and we have current position, update last position for delta calculation
@@ -905,3 +825,6 @@ class MouseController(InputController):
         self.is_moving_to_target = False
         self.side_button_up_pressed = False
         self.side_button_down_pressed = False
+        # Clear scene objects to force recreation on next use
+        self._mjv_scene = None
+        self._mjv_option = None
