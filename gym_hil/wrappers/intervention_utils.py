@@ -579,7 +579,6 @@ class MouseController(InputController):
         self.env = None  # Reference to environment for getting gripper position
         self.target_object_pos = None  # Target object position for continuous movement
         self.is_moving_to_target = False  # Flag to indicate continuous movement
-        self.scroll_delta_z = 0.0  # Z-axis movement from mouse scroll
         self.side_button_up_pressed = False  # Side button up (x2) pressed
         self.side_button_down_pressed = False  # Side button down (x1) pressed
 
@@ -657,24 +656,9 @@ class MouseController(InputController):
                 else:
                     self.side_button_down_pressed = False
 
-        def on_scroll(x, y, dx, dy):
-            """Handle mouse scroll for Z-axis movement.
-            
-            Args:
-                x, y: Mouse position
-                dx: Horizontal scroll (not used)
-                dy: Vertical scroll - positive is up, negative is down
-            """
-            # dy > 0: scroll up (move up)
-            # dy < 0: scroll down (move down)
-            # Convert scroll to Z-axis movement
-            scroll_sensitivity = 0.01  # Movement per scroll unit
-            self.scroll_delta_z = -dy * scroll_sensitivity * self.z_step_size
-
         self.listener = mouse.Listener(
             on_move=on_move,
-            on_click=on_click,
-            on_scroll=on_scroll
+            on_click=on_click
         )
         self.listener.start()
 
@@ -682,8 +666,6 @@ class MouseController(InputController):
         print("  鼠标中键按下: 切换干预模式开启/关闭")
         print("  鼠标左键单击: 控制末端移动")
         print("  鼠标右键单击: 切换夹爪开合")
-        print("  鼠标滚轮向上: 末端垂直向上移动")
-        print("  鼠标滚轮向下: 末端垂直向下移动")
         print("  鼠标侧键向上(前进键): 末端持续垂直向上移动")
         print("  鼠标侧键向下(后退键): 末端持续垂直向下移动")
 
@@ -846,18 +828,12 @@ class MouseController(InputController):
                     
                     delta_x = movement[0]
                     delta_y = movement[1]
-                    # Z movement from target following (will be combined with scroll)
+                    # Z movement from target following
                     delta_z = movement[2]
                 else:
                     # Already at target, stop moving
                     self.is_moving_to_target = False
                     self.target_object_pos = None
-        
-        # Add scroll-based Z movement (vertical movement)
-        if abs(self.scroll_delta_z) > 0.0001:
-            delta_z += self.scroll_delta_z
-            # Reset scroll delta after use (one-time movement per scroll event)
-            self.scroll_delta_z = 0.0
         
         # Add side button Z movement (vertical movement)
         side_button_step = 0.02  # Movement step per frame when side button is pressed
@@ -866,7 +842,7 @@ class MouseController(InputController):
         if self.side_button_down_pressed:
             delta_z -= side_button_step * self.z_step_size  # Move down (negative Z)
         
-        # If we have movement from target following or scroll, return it
+        # If we have movement from target following, return it
         if abs(delta_x) > 0.0001 or abs(delta_y) > 0.0001 or abs(delta_z) > 0.0001:
             return delta_x, delta_y, delta_z
         
@@ -892,7 +868,7 @@ class MouseController(InputController):
         # Invert Y because screen coordinates have Y pointing down
         delta_x = -dy_pixel * self.sensitivity * self.x_step_size
         delta_y = dx_pixel * self.sensitivity * self.y_step_size
-        delta_z = 0.0  # Z movement from scroll is handled separately above
+        delta_z = 0.0  # Z movement from side buttons is handled separately above
 
         # Update last position for next frame
         self.last_mouse_pos = self.current_mouse_pos
@@ -927,6 +903,5 @@ class MouseController(InputController):
         self.click_movement_delta = None
         self.target_object_pos = None
         self.is_moving_to_target = False
-        self.scroll_delta_z = 0.0
         self.side_button_up_pressed = False
         self.side_button_down_pressed = False
