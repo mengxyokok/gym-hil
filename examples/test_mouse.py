@@ -9,7 +9,7 @@ from gym_hil.wrappers.hil_wrappers import MouseControlWrapper
 
 # 创建环境
 # PandaArrangeBoxesKeyboard
-env = gym.make("gym_hil/PandaPickCubeKeyboard-v0", render_mode="human", max_episode_steps=10000)
+env = gym.make("gym_hil/PandaArrangeBoxesKeyboard-v0", render_mode="human", max_episode_steps=6000)
 
 # 添加鼠标控制wrapper
 env = MouseControlWrapper(
