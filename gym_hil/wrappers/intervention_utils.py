@@ -577,6 +577,8 @@ class MouseController(InputController):
         self.click_reference_pos = None  # Reference position for click-based movement (screen coordinates of gripper center)
         self.click_movement_delta = None  # Movement delta from click
         self.env = None  # Reference to environment for getting gripper position
+        self.target_object_pos = None  # Target object position for continuous movement
+        self.is_moving_to_target = False  # Flag to indicate continuous movement
 
     def start(self):
         """Start the mouse listener."""
@@ -601,44 +603,27 @@ class MouseController(InputController):
                 elif not pressed:
                     self.middle_click_pending = False
             elif button == mouse.Button.left:
-                # Left button: click to move end effector towards clicked object
+                # Left button: click and hold to move end effector towards clicked object continuously
                 if pressed and not self.left_click_pending:
                     # Get target object position (simplified: use block position)
                     target_pos = self._get_clicked_object_position(x, y)
                     
                     if target_pos is not None:
-                        # Get gripper center position in 3D space
-                        gripper_pos = self._get_gripper_3d_position()
-                        
-                        if gripper_pos is not None:
-                            # Calculate direction vector from gripper to target
-                            direction = target_pos - gripper_pos
-                            
-                            # Normalize and scale by step size
-                            distance = np.linalg.norm(direction)
-                            if distance > 0.001:  # Avoid division by zero
-                                # Normalize direction
-                                direction_normalized = direction / distance
-                                
-                                # Apply step size (move a fixed distance towards target)
-                                step_distance = min(distance, 0.05)  # Max step of 5cm
-                                movement = direction_normalized * step_distance
-                                
-                                self.click_movement_delta = (movement[0], movement[1], movement[2])
-                            else:
-                                # Already at target
-                                self.click_movement_delta = (0.0, 0.0, 0.0)
-                        else:
-                            # Fallback: use pixel-based movement
-                            self.click_movement_delta = self._pixel_to_movement(x, y)
+                        # Store target position for continuous movement
+                        self.target_object_pos = target_pos.copy()
+                        self.is_moving_to_target = True
+                        self.left_click_pending = True
                     else:
                         # Fallback: use pixel-based movement if object not found
+                        self.is_moving_to_target = False
+                        self.target_object_pos = None
                         self.click_movement_delta = self._pixel_to_movement(x, y)
-                    
-                    self.left_click_pending = True
+                        self.left_click_pending = True
                 elif not pressed:
+                    # Stop continuous movement when button is released
                     self.left_click_pending = False
-                    # Reset movement delta after a short delay
+                    self.is_moving_to_target = False
+                    self.target_object_pos = None
                     self.click_movement_delta = None
             elif button == mouse.Button.right:
                 # Right button: toggle gripper
@@ -809,7 +794,35 @@ class MouseController(InputController):
 
     def get_deltas(self):
         """Get the current movement deltas from mouse state."""
-        # Check for click-based movement first
+        # Check for continuous movement towards target object
+        if self.is_moving_to_target and self.target_object_pos is not None:
+            # Get current gripper position
+            gripper_pos = self._get_gripper_3d_position()
+            
+            if gripper_pos is not None:
+                # Calculate direction vector from gripper to target
+                direction = self.target_object_pos - gripper_pos
+                
+                # Normalize and scale by step size
+                distance = np.linalg.norm(direction)
+                if distance > 0.001:  # Avoid division by zero
+                    # Normalize direction
+                    direction_normalized = direction / distance
+                    
+                    # Apply step size (move a fixed distance towards target per frame)
+                    step_distance = min(distance, 0.02)  # Max step of 2cm per frame
+                    movement = direction_normalized * step_distance
+                    
+                    return movement[0], movement[1], movement[2]
+                else:
+                    # Already at target, stop moving
+                    self.is_moving_to_target = False
+                    self.target_object_pos = None
+                    return 0.0, 0.0, 0.0
+            else:
+                return 0.0, 0.0, 0.0
+        
+        # Check for click-based movement (one-time)
         if self.click_movement_delta is not None:
             delta_x, delta_y, delta_z = self.click_movement_delta
             # Reset after one frame to make it a single-step movement
@@ -864,3 +877,5 @@ class MouseController(InputController):
         self.close_gripper_command = False
         self.click_reference_pos = None
         self.click_movement_delta = None
+        self.target_object_pos = None
+        self.is_moving_to_target = False
