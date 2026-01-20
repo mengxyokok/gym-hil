@@ -5,8 +5,8 @@ import numpy as np
 
 import gym_hil  # noqa: F401
 
-# 创建环境
-env = gym.make("gym_hil/PandaPickCubeKeyboard-v0", render_mode="human")
+# 创建环境，启用随机cube位置
+env = gym.make("gym_hil/PandaPickCubeKeyboard-v0", render_mode="human", random_block_position=True)
 
 # 重置环境
 obs, _ = env.reset()
