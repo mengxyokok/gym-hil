@@ -28,13 +28,6 @@ action = np.zeros(env.action_space.shape[0], dtype=np.float32)
 # 重置环境
 obs, _ = env.reset()
 
-print("=" * 50)
-print("鼠标控制说明:")
-print("  鼠标中键按下: 切换干预模式开启/关闭")
-print("  鼠标左键单击: 控制末端移动")
-print("  鼠标右键单击: 切换夹爪开合")
-print("=" * 50)
-
 try:
     while True:
         # action来自鼠标输入（按中键激活干预模式后生效）
