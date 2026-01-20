@@ -8,7 +8,8 @@ import gym_hil  # noqa: F401
 from gym_hil.wrappers.hil_wrappers import MouseControlWrapper
 
 # 创建环境
-env = gym.make("gym_hil/PandaPickCubeKeyboard-v0", render_mode="human")
+# PandaArrangeBoxesKeyboard
+env = gym.make("gym_hil/PandaPickCubeKeyboard-v0", render_mode="human", max_episode_steps=10000)
 
 # 添加鼠标控制wrapper
 env = MouseControlWrapper(
@@ -30,8 +31,8 @@ obs, _ = env.reset()
 print("=" * 50)
 print("鼠标控制说明:")
 print("  鼠标中键按下: 切换干预模式开启/关闭")
-print("  鼠标左键拖拽: 末端跟随鼠标移动")
-print("  鼠标右键点击: 切换夹爪开合")
+print("  鼠标左键单击: 控制末端移动")
+print("  鼠标右键单击: 切换夹爪开合")
 print("=" * 50)
 
 try:

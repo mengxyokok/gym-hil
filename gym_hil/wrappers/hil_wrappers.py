@@ -321,6 +321,9 @@ class MouseControlWrapper(gym.Wrapper):
             z_step_size=z_step_size,
             sensitivity=sensitivity,
         )
+        
+        # Set environment reference for getting gripper position
+        self.controller.set_env(self.env)
 
         self.auto_reset = auto_reset
         self.use_gripper = use_gripper

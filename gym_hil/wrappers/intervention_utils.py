@@ -17,6 +17,8 @@
 import json
 from pathlib import Path
 
+import numpy as np
+
 
 def load_controller_config(controller_name: str, config_path: str | None = None) -> dict:
     """
@@ -571,6 +573,10 @@ class MouseController(InputController):
         self.middle_click_pending = False
         self.mouse_ctrl = None
         self.current_mouse_pos = None
+        self.left_click_pending = False
+        self.click_reference_pos = None  # Reference position for click-based movement (screen coordinates of gripper center)
+        self.click_movement_delta = None  # Movement delta from click
+        self.env = None  # Reference to environment for getting gripper position
 
     def start(self):
         """Start the mouse listener."""
@@ -595,15 +601,45 @@ class MouseController(InputController):
                 elif not pressed:
                     self.middle_click_pending = False
             elif button == mouse.Button.left:
-                # Left button: start/stop dragging
-                if pressed:
-                    self.is_dragging = True
-                    self.last_mouse_pos = (x, y)
-                    self.current_mouse_pos = (x, y)
-                else:
-                    self.is_dragging = False
-                    self.last_mouse_pos = None
-                    self.current_mouse_pos = None
+                # Left button: click to move end effector towards clicked object
+                if pressed and not self.left_click_pending:
+                    # Get target object position (simplified: use block position)
+                    target_pos = self._get_clicked_object_position(x, y)
+                    
+                    if target_pos is not None:
+                        # Get gripper center position in 3D space
+                        gripper_pos = self._get_gripper_3d_position()
+                        
+                        if gripper_pos is not None:
+                            # Calculate direction vector from gripper to target
+                            direction = target_pos - gripper_pos
+                            
+                            # Normalize and scale by step size
+                            distance = np.linalg.norm(direction)
+                            if distance > 0.001:  # Avoid division by zero
+                                # Normalize direction
+                                direction_normalized = direction / distance
+                                
+                                # Apply step size (move a fixed distance towards target)
+                                step_distance = min(distance, 0.05)  # Max step of 5cm
+                                movement = direction_normalized * step_distance
+                                
+                                self.click_movement_delta = (movement[0], movement[1], movement[2])
+                            else:
+                                # Already at target
+                                self.click_movement_delta = (0.0, 0.0, 0.0)
+                        else:
+                            # Fallback: use pixel-based movement
+                            self.click_movement_delta = self._pixel_to_movement(x, y)
+                    else:
+                        # Fallback: use pixel-based movement if object not found
+                        self.click_movement_delta = self._pixel_to_movement(x, y)
+                    
+                    self.left_click_pending = True
+                elif not pressed:
+                    self.left_click_pending = False
+                    # Reset movement delta after a short delay
+                    self.click_movement_delta = None
             elif button == mouse.Button.right:
                 # Right button: toggle gripper
                 if pressed and not self.right_click_pending:
@@ -635,14 +671,135 @@ class MouseController(InputController):
 
         print("鼠标控制:")
         print("  鼠标中键按下: 切换干预模式开启/关闭")
-        print("  鼠标左键拖拽: 末端跟随鼠标")
-        print("  鼠标右键点击: 切换夹爪开合")
+        print("  鼠标左键单击: 控制末端移动")
+        print("  鼠标右键单击: 切换夹爪开合")
 
     def stop(self):
         """Stop the mouse listener."""
         if self.listener and self.listener.is_alive():
             self.listener.stop()
+    
+    def set_env(self, env):
+        """Set the environment instance for getting gripper position."""
+        self.env = env
+    
+    def _get_gripper_3d_position(self):
+        """Get gripper center position in 3D world space.
+        
+        Returns:
+            numpy array of (x, y, z) position, or None if unavailable.
+        """
+        if self.env is None:
+            return None
+        
+        try:
+            unwrapped = self.env.unwrapped
+            if not hasattr(unwrapped, '_data'):
+                return None
+            
+            # Get gripper 3D position from sensor
+            gripper_pos = unwrapped._data.sensor("2f85/pinch_pos").data.copy()
+            return gripper_pos
+        except Exception:
+            return None
+    
+    def _get_clicked_object_position(self, screen_x, screen_y):
+        """Get the 3D position of the object at the clicked screen coordinates.
+        
+        For simplicity, we use the block position as the target.
+        In a full implementation, this would use ray casting to find the clicked object.
+        
+        Args:
+            screen_x: Screen X coordinate
+            screen_y: Screen Y coordinate
+            
+        Returns:
+            numpy array of (x, y, z) position, or None if unavailable.
+        """
+        if self.env is None:
+            return None
+        
+        try:
+            unwrapped = self.env.unwrapped
+            if not hasattr(unwrapped, '_data'):
+                return None
+            
+            # Simplified: use block position as target
+            # In a full implementation, we would:
+            # 1. Unproject screen coordinates to 3D ray
+            # 2. Cast ray to find intersection with objects
+            # 3. Return the center position of the clicked object
+            
+            # Try to get block position
+            try:
+                block_pos = unwrapped._data.sensor("block_pos").data.copy()
+                return block_pos
+            except:
+                # Try block1_pos for arrange boxes environment
+                try:
+                    block_pos = unwrapped._data.sensor("block1_pos").data.copy()
+                    return block_pos
+                except:
+                    return None
+        except Exception:
+            return None
+    
+    def _pixel_to_movement(self, x, y):
+        """Fallback method: convert pixel click to movement delta.
+        
+        Args:
+            x: Screen X coordinate
+            y: Screen Y coordinate
+            
+        Returns:
+            Tuple of (delta_x, delta_y, delta_z)
+        """
+        # Use screen center as reference
+        if self.click_reference_pos is None:
+            try:
+                import tkinter as tk
+                root = tk.Tk()
+                screen_width = root.winfo_screenwidth()
+                screen_height = root.winfo_screenheight()
+                root.destroy()
+                self.click_reference_pos = (screen_width // 2, screen_height // 2)
+            except:
+                self.click_reference_pos = (960, 540)  # Default 1920x1080 center
+        
+        dx_pixel = x - self.click_reference_pos[0]
+        dy_pixel = y - self.click_reference_pos[1]
+        
+        delta_x = -dy_pixel * self.sensitivity * self.x_step_size
+        delta_y = dx_pixel * self.sensitivity * self.y_step_size
+        delta_z = 0.0
+        
+        return (delta_x, delta_y, delta_z)
 
+    def _get_gripper_screen_position(self):
+        """Get gripper center position in screen coordinates.
+        
+        For simplicity, we use screen center as the reference point,
+        assuming the gripper is typically centered in the view.
+        For accurate projection, full 3D-to-2D projection would be needed.
+        
+        Returns:
+            Tuple of (x, y) screen coordinates, or None if unavailable.
+        """
+        try:
+            # Get screen center as reference (simplified approach)
+            # In a real implementation, we would project the 3D gripper position
+            # to screen coordinates using the camera's projection matrix
+            import tkinter as tk
+            root = tk.Tk()
+            screen_width = root.winfo_screenwidth()
+            screen_height = root.winfo_screenheight()
+            root.destroy()
+            # Return screen center as gripper reference position
+            return (screen_width // 2, screen_height // 2)
+        except Exception:
+            # Fallback to default screen center
+            return (960, 540)  # Default 1920x1080 center
+    
     def update(self):
         """Update controller state - call this once per frame."""
         # If dragging and we have current position, update last position for delta calculation
@@ -652,6 +809,14 @@ class MouseController(InputController):
 
     def get_deltas(self):
         """Get the current movement deltas from mouse state."""
+        # Check for click-based movement first
+        if self.click_movement_delta is not None:
+            delta_x, delta_y, delta_z = self.click_movement_delta
+            # Reset after one frame to make it a single-step movement
+            self.click_movement_delta = None
+            return delta_x, delta_y, delta_z
+        
+        # Fallback to dragging if still supported
         if not self.is_dragging or self.last_mouse_pos is None or self.current_mouse_pos is None:
             return 0.0, 0.0, 0.0
 
@@ -693,6 +858,9 @@ class MouseController(InputController):
         self.current_mouse_pos = None
         self.intervention_flag = False
         self.right_click_pending = False
+        self.left_click_pending = False
         self.middle_click_pending = False
         self.open_gripper_command = False
         self.close_gripper_command = False
+        self.click_reference_pos = None
+        self.click_movement_delta = None
