@@ -546,3 +546,153 @@ class GamepadControllerHID(InputController):
     def should_save(self):
         """Return True if save button was pressed."""
         return self.save_requested
+
+
+class MouseController(InputController):
+    """Generate motion deltas from mouse input using pynput."""
+
+    def __init__(self, x_step_size=0.01, y_step_size=0.01, z_step_size=0.01, sensitivity=0.001):
+        """
+        Initialize the mouse controller.
+
+        Args:
+            x_step_size: Base movement step size in meters
+            y_step_size: Base movement step size in meters
+            z_step_size: Base movement step size in meters
+            sensitivity: Mouse movement sensitivity (converts pixel movement to meters)
+        """
+        super().__init__(x_step_size, y_step_size, z_step_size)
+        self.sensitivity = sensitivity
+        self.listener = None
+        self.last_mouse_pos = None
+        self.is_dragging = False
+        self.gripper_state = False  # False = closed, True = open
+        self.right_click_pending = False
+        self.middle_click_pending = False
+        self.mouse_ctrl = None
+        self.current_mouse_pos = None
+
+    def start(self):
+        """Start the mouse listener."""
+        from pynput import mouse
+
+        def on_move(x, y):
+            """Handle mouse movement."""
+            # Update current mouse position
+            self.current_mouse_pos = (x, y)
+
+        def on_click(x, y, button, pressed):
+            """Handle mouse button clicks."""
+            if button == mouse.Button.middle:
+                # Middle button: toggle intervention on/off
+                if pressed and not self.middle_click_pending:
+                    self.intervention_flag = not self.intervention_flag
+                    if self.intervention_flag:
+                        print("✓ 干预模式已开启")
+                    else:
+                        print("✗ 干预模式已关闭")
+                    self.middle_click_pending = True
+                elif not pressed:
+                    self.middle_click_pending = False
+            elif button == mouse.Button.left:
+                # Left button: start/stop dragging
+                if pressed:
+                    self.is_dragging = True
+                    self.last_mouse_pos = (x, y)
+                    self.current_mouse_pos = (x, y)
+                else:
+                    self.is_dragging = False
+                    self.last_mouse_pos = None
+                    self.current_mouse_pos = None
+            elif button == mouse.Button.right:
+                # Right button: toggle gripper
+                if pressed and not self.right_click_pending:
+                    self.gripper_state = not self.gripper_state
+                    self.right_click_pending = True
+                    if self.gripper_state:
+                        self.open_gripper_command = True
+                        self.close_gripper_command = False
+                    else:
+                        self.open_gripper_command = False
+                        self.close_gripper_command = True
+                elif not pressed:
+                    self.right_click_pending = False
+                    # Reset gripper commands after a short delay
+                    self.open_gripper_command = False
+                    self.close_gripper_command = False
+
+        def on_scroll(x, y, dx, dy):
+            """Handle mouse scroll (for Z-axis movement)."""
+            # Scroll can be used for Z-axis movement if needed
+            pass
+
+        self.listener = mouse.Listener(
+            on_move=on_move,
+            on_click=on_click,
+            on_scroll=on_scroll
+        )
+        self.listener.start()
+
+        print("鼠标控制:")
+        print("  鼠标中键按下: 切换干预模式开启/关闭")
+        print("  鼠标左键拖拽: 末端跟随鼠标")
+        print("  鼠标右键点击: 切换夹爪开合")
+
+    def stop(self):
+        """Stop the mouse listener."""
+        if self.listener and self.listener.is_alive():
+            self.listener.stop()
+
+    def update(self):
+        """Update controller state - call this once per frame."""
+        # If dragging and we have current position, update last position for delta calculation
+        if self.is_dragging and self.current_mouse_pos is not None:
+            if self.last_mouse_pos is None:
+                self.last_mouse_pos = self.current_mouse_pos
+
+    def get_deltas(self):
+        """Get the current movement deltas from mouse state."""
+        if not self.is_dragging or self.last_mouse_pos is None or self.current_mouse_pos is None:
+            return 0.0, 0.0, 0.0
+
+        # Calculate pixel movement
+        dx_pixel = self.current_mouse_pos[0] - self.last_mouse_pos[0]
+        dy_pixel = self.current_mouse_pos[1] - self.last_mouse_pos[1]
+
+        # Convert pixel movement to world space movement
+        # Note: This is a simplified conversion. For proper 3D projection,
+        # we would need to unproject the mouse coordinates to 3D space.
+        # For now, we use a simple sensitivity-based approach.
+        # Invert Y because screen coordinates have Y pointing down
+        delta_x = -dy_pixel * self.sensitivity * self.x_step_size
+        delta_y = dx_pixel * self.sensitivity * self.y_step_size
+        delta_z = 0.0  # Z movement would require additional input (e.g., scroll wheel)
+
+        # Update last position for next frame
+        self.last_mouse_pos = self.current_mouse_pos
+
+        return delta_x, delta_y, delta_z
+
+    def should_intervene(self):
+        """Return True if intervention flag was set (middle button pressed)."""
+        return self.intervention_flag
+
+    def gripper_command(self):
+        """Return the current gripper command based on mouse right click."""
+        if self.open_gripper_command:
+            return "open"
+        elif self.close_gripper_command:
+            return "close"
+        else:
+            return "no-op"
+
+    def reset(self):
+        """Reset the controller."""
+        self.is_dragging = False
+        self.last_mouse_pos = None
+        self.current_mouse_pos = None
+        self.intervention_flag = False
+        self.right_click_pending = False
+        self.middle_click_pending = False
+        self.open_gripper_command = False
+        self.close_gripper_command = False

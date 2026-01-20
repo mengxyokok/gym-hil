@@ -282,6 +282,150 @@ class InputsControlWrapper(gym.Wrapper):
         return self.env.close()
 
 
+class MouseControlWrapper(gym.Wrapper):
+    """
+    Wrapper that allows controlling a gym environment with mouse input.
+
+    This wrapper intercepts the step method and allows human input via mouse
+    to override the agent's actions when desired.
+    """
+
+    def __init__(
+        self,
+        env,
+        x_step_size=1.0,
+        y_step_size=1.0,
+        z_step_size=1.0,
+        use_gripper=False,
+        auto_reset=False,
+        sensitivity=0.001,
+    ):
+        """
+        Initialize the mouse control wrapper.
+
+        Args:
+            env: The environment to wrap
+            x_step_size: Base movement step size for X axis in meters
+            y_step_size: Base movement step size for Y axis in meters
+            z_step_size: Base movement step size for Z axis in meters
+            use_gripper: Whether to use gripper control
+            auto_reset: Whether to auto reset the environment when episode ends
+            sensitivity: Mouse movement sensitivity
+        """
+        super().__init__(env)
+        from gym_hil.wrappers.intervention_utils import MouseController
+
+        self.controller = MouseController(
+            x_step_size=x_step_size,
+            y_step_size=y_step_size,
+            z_step_size=z_step_size,
+            sensitivity=sensitivity,
+        )
+
+        self.auto_reset = auto_reset
+        self.use_gripper = use_gripper
+        self.controller.start()
+
+    def get_mouse_action(self):
+        """
+        Get the current action from the mouse if any input is active.
+
+        Returns:
+            Tuple of (is_active, action, terminate_episode, success)
+        """
+        # Update the controller to get fresh inputs
+        self.controller.update()
+
+        # Get movement deltas from the controller
+        delta_x, delta_y, delta_z = self.controller.get_deltas()
+
+        intervention_is_active = self.controller.should_intervene()
+
+        # Create action from mouse input
+        mouse_action = np.array([delta_x, delta_y, delta_z], dtype=np.float32)
+
+        if self.use_gripper:
+            gripper_command = self.controller.gripper_command()
+            if gripper_command == "open":
+                mouse_action = np.concatenate([mouse_action, [2.0]])
+            elif gripper_command == "close":
+                mouse_action = np.concatenate([mouse_action, [0.0]])
+            else:
+                mouse_action = np.concatenate([mouse_action, [1.0]])
+
+        return (
+            intervention_is_active,
+            mouse_action,
+            False,  # terminate_episode
+            False,  # success
+            False,  # rerecord_episode
+        )
+
+    def step(self, action):
+        """
+        Step the environment, using mouse input to override actions when active.
+
+        Args:
+            action: Original action from agent
+
+        Returns:
+            observation, reward, terminated, truncated, info
+        """
+        # Get mouse state and action
+        (
+            is_intervention,
+            mouse_action,
+            terminate_episode,
+            success,
+            rerecord_episode,
+        ) = self.get_mouse_action()
+
+        if is_intervention:
+            action = mouse_action
+
+        # Step the environment
+        obs, reward, terminated, truncated, info = self.env.step(action)
+
+        # Add episode ending if requested via mouse
+        terminated = terminated or truncated or terminate_episode
+
+        if success:
+            reward = 1.0
+            logging.info("Episode ended successfully with reward 1.0")
+
+        info["is_intervention"] = is_intervention
+        action_intervention = action
+
+        info["teleop_action"] = action_intervention
+        info["rerecord_episode"] = rerecord_episode
+
+        # If episode ended, reset the state
+        if terminated or truncated:
+            # Add success/failure information to info dict
+            info["next.success"] = success
+
+            # Auto reset if configured
+            if self.auto_reset:
+                obs, reset_info = self.reset()
+                info.update(reset_info)
+
+        return obs, reward, terminated, truncated, info
+
+    def reset(self, **kwargs):
+        """Reset the environment."""
+        self.controller.reset()
+        return self.env.reset(**kwargs)
+
+    def close(self):
+        """Clean up resources when environment closes."""
+        # Stop the controller
+        if hasattr(self, "controller"):
+            self.controller.stop()
+
+        # Call the parent close method
+        return self.env.close()
+
+
 class ResetDelayWrapper(gym.Wrapper):
     """
     Wrapper that adds a time delay when resetting the environment.
