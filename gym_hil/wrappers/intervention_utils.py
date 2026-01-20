@@ -567,22 +567,17 @@ class MouseController(InputController):
         self.sensitivity = sensitivity
         self.listener = None
         self.last_mouse_pos = None
-        self.is_dragging = False
         self.gripper_state = False  # False = closed, True = open
         self.right_click_pending = False
         self.middle_click_pending = False
-        self.mouse_ctrl = None
         self.current_mouse_pos = None
         self.left_click_pending = False
-        self.click_reference_pos = None  # Reference position for click-based movement (screen coordinates of gripper center)
         self.click_movement_delta = None  # Movement delta from click
         self.env = None  # Reference to environment for getting gripper position
         self.target_object_pos = None  # Target object position for continuous movement
         self.is_moving_to_target = False  # Flag to indicate continuous movement
         self.side_button_up_pressed = False  # Side button up (x2) pressed
         self.side_button_down_pressed = False  # Side button down (x1) pressed
-        self._mjv_scene = None  # MuJoCo scene object for mjv_select
-        self._mjv_option = None  # MuJoCo option object for mjv_select
 
     def start(self):
         """Start the mouse listener."""
@@ -621,10 +616,9 @@ class MouseController(InputController):
                         # Print target object position
                         print(f"目标对象位置 (target position): ({self.target_object_pos[0]:.4f}, {self.target_object_pos[1]:.4f}, {self.target_object_pos[2]:.4f})")
                     else:
-                        # Fallback: use pixel-based movement if object not found
+                        # No target found, stop movement
                         self.is_moving_to_target = False
                         self.target_object_pos = None
-                        self.click_movement_delta = self._pixel_to_movement(x, y)
                         self.left_click_pending = True
                 elif not pressed:
                     # Stop continuous movement when button is released
@@ -717,8 +711,8 @@ class MouseController(InputController):
 
     def update(self):
         """Update controller state - call this once per frame."""
-        # If dragging and we have current position, update last position for delta calculation
-        if self.is_dragging and self.current_mouse_pos is not None:
+        # Update last position for delta calculation if we have current position
+        if self.current_mouse_pos is not None:
             if self.last_mouse_pos is None:
                 self.last_mouse_pos = self.current_mouse_pos
 
@@ -773,27 +767,8 @@ class MouseController(InputController):
             self.click_movement_delta = None
             return delta_x, delta_y, delta_z
         
-        # Fallback to dragging if still supported
-        if not self.is_dragging or self.last_mouse_pos is None or self.current_mouse_pos is None:
-            return 0.0, 0.0, 0.0
-
-        # Calculate pixel movement
-        dx_pixel = self.current_mouse_pos[0] - self.last_mouse_pos[0]
-        dy_pixel = self.current_mouse_pos[1] - self.last_mouse_pos[1]
-
-        # Convert pixel movement to world space movement
-        # Note: This is a simplified conversion. For proper 3D projection,
-        # we would need to unproject the mouse coordinates to 3D space.
-        # For now, we use a simple sensitivity-based approach.
-        # Invert Y because screen coordinates have Y pointing down
-        delta_x = -dy_pixel * self.sensitivity * self.x_step_size
-        delta_y = dx_pixel * self.sensitivity * self.y_step_size
-        delta_z = 0.0  # Z movement from side buttons is handled separately above
-
-        # Update last position for next frame
-        self.last_mouse_pos = self.current_mouse_pos
-
-        return delta_x, delta_y, delta_z
+        # No movement
+        return 0.0, 0.0, 0.0
 
     def should_intervene(self):
         """Return True if intervention flag was set (middle button pressed)."""
@@ -810,7 +785,6 @@ class MouseController(InputController):
 
     def reset(self):
         """Reset the controller."""
-        self.is_dragging = False
         self.last_mouse_pos = None
         self.current_mouse_pos = None
         self.intervention_flag = False
@@ -819,12 +793,8 @@ class MouseController(InputController):
         self.middle_click_pending = False
         self.open_gripper_command = False
         self.close_gripper_command = False
-        self.click_reference_pos = None
         self.click_movement_delta = None
         self.target_object_pos = None
         self.is_moving_to_target = False
         self.side_button_up_pressed = False
         self.side_button_down_pressed = False
-        # Clear scene objects to force recreation on next use
-        self._mjv_scene = None
-        self._mjv_option = None
