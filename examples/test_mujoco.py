@@ -11,7 +11,6 @@ import numpy as np
 xml_path = Path(__file__).parent.parent / "gym_hil" / "assets" / "arrange_boxes_scene.xml"
 model = mujoco.MjModel.from_xml_path(str(xml_path))
 data = mujoco.MjData(model)
-# mujoco.mj_forward(model, data)
 
 
 # 创建GLFW窗口
