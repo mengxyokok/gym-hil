@@ -46,5 +46,5 @@ except KeyboardInterrupt:
     print("用户中断")
 finally:
     env.close()
-    print("测试结束")
+    print("环境关闭")
 

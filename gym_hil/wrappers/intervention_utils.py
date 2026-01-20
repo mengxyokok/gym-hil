@@ -17,6 +17,7 @@
 import json
 from pathlib import Path
 
+import mujoco
 import numpy as np
 
 
@@ -707,6 +708,28 @@ class MouseController(InputController):
         Returns:
             numpy array of (x, y, z) position, or None if unavailable.
         """
+        # 从env获取viewer和perturb：优先检查PassiveViewerWrapper的_viewer属性
+        viewer = None
+        unwrapped = self.env.unwrapped if hasattr(self.env, 'unwrapped') else self.env
+        
+        # 检查PassiveViewerWrapper的_viewer（最常见情况）
+        if hasattr(self.env, '_viewer'):
+            viewer = self.env._viewer
+        # 检查unwrapped环境的viewer
+        elif hasattr(unwrapped, '_viewer'):
+            viewer = unwrapped._viewer
+        elif hasattr(unwrapped, 'viewer'):
+            viewer = unwrapped.viewer
+        
+        # 获取model
+        model = unwrapped.model if hasattr(unwrapped, 'model') else (unwrapped._model if hasattr(unwrapped, '_model') else None)
+        
+        # 检查perturb.select
+        if viewer and hasattr(viewer, 'perturb') and viewer.perturb.select > 0:
+            gid = viewer.perturb.select
+            if model:
+                geom_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, gid)
+                print(f"选中: {geom_name} (ID:{gid})")
         return np.array([0.3, 0.0, 0.0], dtype=np.float64)
 
     def update(self):
