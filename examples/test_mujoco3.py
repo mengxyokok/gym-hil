@@ -20,5 +20,5 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         viewer.sync()
         # 检查选中对象（最短实现）
         if viewer.perturb.select > 0:
-            gid = viewer.perturb.select
-            print(f"选中: {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, gid)} (ID:{gid})")
+            body_id = viewer.perturb.select
+            print(f"选中: {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body_id)} (ID:{body_id})")
