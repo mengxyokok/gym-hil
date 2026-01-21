@@ -22,3 +22,5 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         if viewer.perturb.select > 0:
             body_id = viewer.perturb.select
             print(f"选中: {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body_id)} (ID:{body_id})")
+            body_pos = data.xpos[body_id].copy()
+            print(f"位置: ({body_pos[0]:.4f}, {body_pos[1]:.4f}, {body_pos[2]:.4f})")

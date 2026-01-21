@@ -579,7 +579,7 @@ class MouseController(InputController):
         self.is_moving_to_target = False  # Flag to indicate continuous movement
         self.side_button_up_pressed = False  # Side button up (x2) pressed
         self.side_button_down_pressed = False  # Side button down (x1) pressed
-        self.last_selected_geom_id = -1  # 上一次选中的geom ID，用于检测变化
+        self.last_selected_body_id = -1  # 上一次选中的geom ID，用于检测变化
 
     def start(self):
         """Start the mouse listener."""
@@ -724,25 +724,25 @@ class MouseController(InputController):
         
         # 检查perturb.select
         if hasattr(viewer, 'perturb') and viewer.perturb.select > 0:
-            geom_id = viewer.perturb.select
+            body_id = viewer.perturb.select
             
             # 只在选中物体变化时输出信息
-            if geom_id != self.last_selected_geom_id:
-                self.last_selected_geom_id = geom_id
-                print(f"选中: {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, geom_id)} (ID:{geom_id})")
-                # Print target object position
-                # print(f"目标对象位置 (target position): ({self.target_object_pos[0]:.4f}, {self.target_object_pos[1]:.4f}, {self.target_object_pos[2]:.4f})")
+            if body_id != self.last_selected_body_id:
+                self.last_selected_body_id = body_id
+                body_pos = data.xpos[body_id].copy()
+                print(f"目标对象: {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body_id)} (ID:{body_id})")
+                print(f"目标位置: ({body_pos[0]:.4f}, {body_pos[1]:.4f}, {body_pos[2]:.4f})")
             else:
-                # 如果geom_id没有变化，直接返回位置（不重复输出信息）
+                # 如果body_id没有变化，直接返回位置（不重复输出信息）
                 try:
-                    geom_pos = data.geom_xpos[geom_id].copy()
-                    return geom_pos
+                    body_pos = data.xpos[body_id].copy()
+                    return body_pos
                 except:
                     return None
         else:
-            # 如果没有选中对象，重置last_selected_geom_id
-            if self.last_selected_geom_id != -1:
-                self.last_selected_geom_id = -1
+            # 如果没有选中对象，重置last_selected_body_id
+            if self.last_selected_body_id != -1:
+                self.last_selected_body_id = -1
         
         return None
 
