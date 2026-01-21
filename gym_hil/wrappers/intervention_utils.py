@@ -579,6 +579,7 @@ class MouseController(InputController):
         self.is_moving_to_target = False  # Flag to indicate continuous movement
         self.side_button_up_pressed = False  # Side button up (x2) pressed
         self.side_button_down_pressed = False  # Side button down (x1) pressed
+        self.last_selected_geom_id = -1  # 上一次选中的geom ID，用于检测变化
 
     def start(self):
         """Start the mouse listener."""
@@ -613,9 +614,7 @@ class MouseController(InputController):
                         self.target_object_pos = target_pos.copy()
                         self.is_moving_to_target = True
                         self.left_click_pending = True
-                        
-                        # Print target object position
-                        print(f"目标对象位置 (target position): ({self.target_object_pos[0]:.4f}, {self.target_object_pos[1]:.4f}, {self.target_object_pos[2]:.4f})")
+
                     else:
                         # No target found, stop movement
                         self.is_moving_to_target = False
@@ -664,6 +663,7 @@ class MouseController(InputController):
 
         print("鼠标控制:")
         print("  鼠标中键按下: 切换干预模式开启/关闭")
+        print("  鼠标左键双击: 选择目标物体")
         print("  鼠标左键单击: 控制末端移动")
         print("  鼠标右键单击: 切换夹爪开合")
         print("  鼠标侧键向上(前进键): 末端持续垂直向上移动")
@@ -708,29 +708,43 @@ class MouseController(InputController):
         Returns:
             numpy array of (x, y, z) position, or None if unavailable.
         """
-        # 从env获取viewer和perturb：优先检查PassiveViewerWrapper的_viewer属性
-        viewer = None
+        if self.env is None:
+            return None
+        
+        # 获取viewer
+        viewer =  self.env.env.env.env.env._viewer
         unwrapped = self.env.unwrapped if hasattr(self.env, 'unwrapped') else self.env
         
-        # 检查PassiveViewerWrapper的_viewer（最常见情况）
-        if hasattr(self.env, '_viewer'):
-            viewer = self.env._viewer
-        # 检查unwrapped环境的viewer
-        elif hasattr(unwrapped, '_viewer'):
-            viewer = unwrapped._viewer
-        elif hasattr(unwrapped, 'viewer'):
-            viewer = unwrapped.viewer
-        
-        # 获取model
+        # 获取model和data
         model = unwrapped.model if hasattr(unwrapped, 'model') else (unwrapped._model if hasattr(unwrapped, '_model') else None)
+        data = unwrapped.data if hasattr(unwrapped, 'data') else (unwrapped._data if hasattr(unwrapped, '_data') else None)
+        
+        if viewer is None or model is None or data is None:
+            return None
         
         # 检查perturb.select
-        if viewer and hasattr(viewer, 'perturb') and viewer.perturb.select > 0:
-            gid = viewer.perturb.select
-            if model:
-                geom_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, gid)
-                print(f"选中: {geom_name} (ID:{gid})")
-        return np.array([0.3, 0.0, 0.0], dtype=np.float64)
+        if hasattr(viewer, 'perturb') and viewer.perturb.select > 0:
+            geom_id = viewer.perturb.select
+            
+            # 只在选中物体变化时输出信息
+            if geom_id != self.last_selected_geom_id:
+                self.last_selected_geom_id = geom_id
+                print(f"选中: {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, geom_id)} (ID:{geom_id})")
+                # Print target object position
+                # print(f"目标对象位置 (target position): ({self.target_object_pos[0]:.4f}, {self.target_object_pos[1]:.4f}, {self.target_object_pos[2]:.4f})")
+            else:
+                # 如果geom_id没有变化，直接返回位置（不重复输出信息）
+                try:
+                    geom_pos = data.geom_xpos[geom_id].copy()
+                    return geom_pos
+                except:
+                    return None
+        else:
+            # 如果没有选中对象，重置last_selected_geom_id
+            if self.last_selected_geom_id != -1:
+                self.last_selected_geom_id = -1
+        
+        return None
 
     def update(self):
         """Update controller state - call this once per frame."""
