@@ -580,6 +580,7 @@ class MouseController(InputController):
         self.side_button_up_pressed = False  # Side button up (x2) pressed
         self.side_button_down_pressed = False  # Side button down (x1) pressed
         self.last_selected_body_id = -1  # 上一次选中的geom ID，用于检测变化
+        self.is_picking_object = True  # 是否拾取物体模式
 
     def start(self):
         """Start the mouse listener."""
@@ -607,7 +608,10 @@ class MouseController(InputController):
                 # Left button: click and hold to move end effector towards clicked object continuously
                 if pressed and not self.left_click_pending:
                     # Get target object position (simplified: use block position)
-                    target_pos = self._get_clicked_object_position(x, y)
+                    if self.is_picking_object:
+                        target_pos = self._get_picked_object_position()
+                    else:
+                        target_pos = self._get_clicked_object_position(x, y)
                     
                     if target_pos is not None:
                         # Store target position for continuous movement
@@ -663,8 +667,12 @@ class MouseController(InputController):
 
         print("鼠标控制:")
         print("  鼠标中键按下: 切换干预模式开启/关闭")
-        print("  鼠标左键双击: 选择目标物体")
-        print("  鼠标左键单击: 控制末端移动")
+        if self.is_picking_object:
+            print("  鼠标左键双击: 选择目标物体")
+            print("  鼠标左键按下: 控制末端移动到目标物体（连续移动）")
+        else:
+            print("  鼠标左键单击: 控制末端移动到目标物体")
+            print("  鼠标左键按下: 控制末端移动到目标物体（连续移动）")
         print("  鼠标右键单击: 切换夹爪开合")
         print("  鼠标侧键向上(前进键): 末端持续垂直向上移动")
         print("  鼠标侧键向下(后退键): 末端持续垂直向下移动")
@@ -698,6 +706,7 @@ class MouseController(InputController):
         except Exception:
             return None
     
+
     def _get_clicked_object_position(self, screen_x, screen_y):
         """Get the 3D position of the object at the clicked screen coordinates.
         
@@ -705,6 +714,15 @@ class MouseController(InputController):
             screen_x: Screen X coordinate (pixels)
             screen_y: Screen Y coordinate (pixels)
             
+        Returns:
+            numpy array of (x, y, z) position, or None if unavailable.
+        """
+        pass
+
+
+    def _get_picked_object_position(self):
+        """Get the 3D position of the picked object.
+ 
         Returns:
             numpy array of (x, y, z) position, or None if unavailable.
         """
