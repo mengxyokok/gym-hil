@@ -19,6 +19,7 @@ import gymnasium as gym
 from gym_hil.mujoco_gym_env import FrankaGymEnv, GymRenderingSpec, MujocoGymEnv
 from gym_hil.wrappers.factory import make_env, wrap_env
 from gym_hil.wrappers.viewer_wrapper import PassiveViewerWrapper
+from gym_hil.wrappers.hil_wrappers import MouseControlWrapper
 
 __all__ = [
     "MujocoGymEnv",
@@ -125,3 +126,25 @@ register(
         "use_inputs_control": True,
     },
 )
+
+register(
+    id="gym_hil/PandaArrangeBoxesMouse-v0",
+    entry_point=lambda **kwargs: MouseControlWrapper(
+        make_env(
+            env_id="gym_hil/PandaArrangeBoxesBase-v0",
+            use_viewer=True,
+            gripper_penalty=-0.05,
+            use_inputs_control=False,  # Mouse control replaces inputs control
+            **{k: v for k, v in kwargs.items() if k != "max_episode_steps"},
+        ),
+        x_step_size=1.0,
+        y_step_size=1.0,
+        z_step_size=1.0,
+        use_gripper=True,
+        auto_reset=False,
+        sensitivity=0.001,
+    ),
+    max_episode_steps=600,
+)
+
+

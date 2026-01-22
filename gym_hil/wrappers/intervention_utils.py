@@ -580,7 +580,7 @@ class MouseController(InputController):
         self.side_button_up_pressed = False  # Side button up (x2) pressed
         self.side_button_down_pressed = False  # Side button down (x1) pressed
         self.last_selected_body_id = -1  # 上一次选中的geom ID，用于检测变化
-        self.is_picking_object = False  # 是否拾取物体模式
+        self.is_picking_object = True  # 是否拾取物体模式
 
     def start(self):
         """Start the mouse listener."""
