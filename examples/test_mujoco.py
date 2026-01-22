@@ -48,15 +48,14 @@ def mouse_button_callback(window, button, action, mods):
         
         # 使用mjv_select进行选择
         # 注意：所有数组参数必须是可写的，且形状正确
-        # selpnt: [3, 1], geomid/flexid/skinid: [1, 1]
+        # selpnt: [3, 1], geomid/skinid: [1, 1]
         selpnt = np.zeros((3, 1), dtype=np.float64)
         geomid_arr = np.array([[-1]], dtype=np.int32)
-        flexid_arr = np.array([[-1]], dtype=np.int32)
         skinid_arr = np.array([[-1]], dtype=np.int32)
         
         mujoco.mjv_select(
             model, data, opt, aspect, relx, rely, scene, 
-            selpnt, geomid_arr, flexid_arr, skinid_arr
+            selpnt, geomid_arr, skinid_arr
         )
         
         geomid = geomid_arr[0, 0]
