@@ -11,6 +11,7 @@ from gym_hil.wrappers.hil_wrappers import (
     EEActionWrapper,
     GripperPenaltyWrapper,
     InputsControlWrapper,
+    MouseControlWrapper,
     ResetDelayWrapper,
 )
 from gym_hil.wrappers.viewer_wrapper import PassiveViewerWrapper
@@ -27,6 +28,7 @@ def wrap_env(
     ee_step_size: EEActionStepSize | None = None,
     use_viewer: bool = False,
     use_gamepad: bool = False,
+    use_mouse: bool = False,
     use_gripper: bool = True,
     use_inputs_control: bool = False,
     auto_reset: bool = False,
@@ -34,6 +36,7 @@ def wrap_env(
     gripper_penalty: float = -0.02,
     reset_delay_seconds: float = 1.0,
     controller_config_path: str = None,
+    mouse_sensitivity: float = 0.001,
 ) -> gym.Env:
     """Apply wrappers to an environment based on configuration.
 
@@ -42,6 +45,7 @@ def wrap_env(
         ee_step_size: Step size for movement in meters
         use_viewer: Whether to add a passive viewer
         use_gamepad: Whether to use gamepad instead of keyboard controls
+        use_mouse: Whether to use mouse controls
         use_gripper: Whether to enable gripper control
         use_inputs_control: Whether to use inputs control
         auto_reset: Whether to automatically reset the environment when episode ends
@@ -49,6 +53,7 @@ def wrap_env(
         gripper_penalty: Penalty for using the gripper
         reset_delay_seconds: The number of seconds to delay during reset
         controller_config_path: Path to the controller configuration JSON file
+        mouse_sensitivity: Mouse movement sensitivity
 
     Returns:
         The wrapped environment
@@ -78,6 +83,18 @@ def wrap_env(
     if use_viewer:
         env = PassiveViewerWrapper(env, show_left_ui=show_ui, show_right_ui=show_ui)
 
+    # Apply mouse control wrapper (after viewer, before reset delay)
+    if use_mouse:
+        env = MouseControlWrapper(
+            env,
+            x_step_size=1.0,
+            y_step_size=1.0,
+            z_step_size=1.0,
+            use_gripper=use_gripper,
+            auto_reset=auto_reset,
+            sensitivity=mouse_sensitivity,
+        )
+
     # Apply time delay wrapper
     env = ResetDelayWrapper(env, delay_seconds=reset_delay_seconds)
 
@@ -89,6 +106,7 @@ def make_env(
     ee_step_size: EEActionStepSize | None = None,
     use_viewer: bool = False,
     use_gamepad: bool = False,
+    use_mouse: bool = False,
     use_gripper: bool = True,
     use_inputs_control: bool = False,
     auto_reset: bool = False,
@@ -96,6 +114,7 @@ def make_env(
     gripper_penalty: float = -0.02,
     reset_delay_seconds: float = 1.0,
     controller_config_path: str | None = None,
+    mouse_sensitivity: float = 0.001,
     **kwargs,
 ) -> gym.Env:
     """Create and wrap an environment in a single function.
@@ -105,6 +124,7 @@ def make_env(
         ee_step_size: Step size for movement in meters
         use_viewer: Whether to add a passive viewer
         use_gamepad: Whether to use gamepad instead of keyboard controls
+        use_mouse: Whether to use mouse controls
         use_gripper: Whether to enable gripper control
         use_inputs_control: Whether to use inputs control
         auto_reset: Whether to automatically reset the environment when episode ends
@@ -112,6 +132,7 @@ def make_env(
         gripper_penalty: Penalty for using the gripper
         reset_delay_seconds: The number of seconds to delay during reset
         controller_config_path: Path to the controller configuration JSON file
+        mouse_sensitivity: Mouse movement sensitivity
         **kwargs: Additional arguments to pass to the base environment
 
     Returns:
@@ -130,6 +151,7 @@ def make_env(
         ee_step_size=ee_step_size,
         use_viewer=use_viewer,
         use_gamepad=use_gamepad,
+        use_mouse=use_mouse,
         use_gripper=use_gripper,
         use_inputs_control=use_inputs_control,
         auto_reset=auto_reset,
@@ -137,4 +159,5 @@ def make_env(
         gripper_penalty=gripper_penalty,
         reset_delay_seconds=reset_delay_seconds,
         controller_config_path=controller_config_path,
+        mouse_sensitivity=mouse_sensitivity,
     )

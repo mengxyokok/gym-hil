@@ -11,20 +11,20 @@ from gym_hil.wrappers.hil_wrappers import MouseControlWrapper
 
 # 创建环境
 # PandaArrangeBoxesKeyboard
-env = gym.make("gym_hil/PandaArrangeBoxesKeyboard-v0", render_mode="human", max_episode_steps=6000)
+# env = gym.make("gym_hil/PandaArrangeBoxesKeyboard-v0", render_mode="human", max_episode_steps=6000)
 
-# 添加鼠标控制wrapper
-env = MouseControlWrapper(
-    env,
-    x_step_size=1.0,
-    y_step_size=1.0,
-    z_step_size=1.0,
-    use_gripper=True,
-    auto_reset=False,
-    sensitivity=0.001,
-)
+# # 添加鼠标控制wrapper
+# env = MouseControlWrapper(
+#     env,
+#     x_step_size=1.0,
+#     y_step_size=1.0,
+#     z_step_size=1.0,
+#     use_gripper=True,
+#     auto_reset=False,
+#     sensitivity=0.001,
+# )
 
-# env = gym.make("gym_hil/PandaArrangeBoxesMouse-v0", render_mode="human", max_episode_steps=6000)
+env = gym.make("gym_hil/PandaArrangeBoxesMouse-v0", render_mode="human", max_episode_steps=6000)
 
 # 创建dummy_action（鼠标输入会自动覆盖）
 action = np.zeros(env.action_space.shape[0], dtype=np.float32)
