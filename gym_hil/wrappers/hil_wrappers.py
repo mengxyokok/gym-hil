@@ -276,12 +276,10 @@ class InputsControlWrapper(gym.Wrapper):
             print(f"\n[Step {self.step_count}]")
             print(f"  Reward: {reward:.4f}")
             print(f"  Intervention: {is_intervention}")
+            print(f"  Success: {success}")
             print(f"  Action: [{action_intervention[0]:.4f}, {action_intervention[1]:.4f}, {action_intervention[2]:.4f}]" + 
                   (f", Gripper: {action_intervention[3]:.4f}" if len(action_intervention) > 3 else ""))
-            if terminated or truncated:
-                print(f"  Episode ended: terminated={terminated}, truncated={truncated}")
-            if "succeed" in info:
-                print(f"  Success: {info.get('succeed', False)}")
+
 
         # 增加step计数
         self.step_count += 1

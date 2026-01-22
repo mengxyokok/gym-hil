@@ -188,7 +188,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         if self.reward_type == "dense":
             return sum(np.exp(-20 * d) for d in distances)
         else:
-            return float(all(d < 0.03 for d in distances))
+            return float(all(d < 0.05 for d in distances))
 
     def _is_success(self) -> bool:
         """Check if the task is successfully completed."""
@@ -199,4 +199,4 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
             for block, target in zip(block_sensors, target_sensors, strict=False)
         ]
 
-        return all(dist < 0.03 for dist in distances)
+        return all(dist < 0.05 for dist in distances)
