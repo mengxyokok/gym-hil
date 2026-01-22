@@ -129,7 +129,7 @@ register(
 register(
     id="gym_hil/PandaArrangeBoxesMouse-v0",
     entry_point="gym_hil.wrappers.factory:make_env",
-    max_episode_steps=1000,
+    max_episode_steps=600,
     kwargs={
         "env_id": "gym_hil/PandaArrangeBoxesBase-v0",
         "use_viewer": True,
