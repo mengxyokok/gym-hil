@@ -264,6 +264,7 @@ class InputsControlWrapper(gym.Wrapper):
         if success:
             reward = 1.0
             logging.info("Episode ended successfully with reward 1.0")
+            print("\n***************** SUCCESS *********************")
 
         info["is_intervention"] = is_intervention
         action_intervention = action
