@@ -580,7 +580,7 @@ class MouseController(InputController):
         self.side_button_up_pressed = False  # Side button up (x2) pressed
         self.side_button_down_pressed = False  # Side button down (x1) pressed
         self.last_selected_body_id = -1  # 上一次选中的geom ID，用于检测变化
-        self.is_picking_object = True  # 是否拾取物体模式
+        self.is_picking_object = False  # 是否拾取物体模式
 
     def start(self):
         """Start the mouse listener."""
@@ -669,6 +669,7 @@ class MouseController(InputController):
         print("  鼠标中键按下: 切换干预模式开启/关闭")
         if self.is_picking_object:
             print("  鼠标左键双击: 选择目标物体")
+            print("  鼠标左键单击: 控制末端移动到目标物体")
             print("  鼠标左键按下: 控制末端移动到目标物体（连续移动）")
         else:
             print("  鼠标左键单击: 控制末端移动到目标物体")
@@ -717,7 +718,37 @@ class MouseController(InputController):
         Returns:
             numpy array of (x, y, z) position, or None if unavailable.
         """
-        pass
+
+        # 获取model和data
+        unwrapped = self.env.unwrapped if hasattr(self.env, 'unwrapped') else self.env
+        model = unwrapped.model if hasattr(unwrapped, 'model') else (unwrapped._model if hasattr(unwrapped, '_model') else None)
+        data = unwrapped.data if hasattr(unwrapped, 'data') else (unwrapped._data if hasattr(unwrapped, '_data') else None)
+
+
+        viewer =  self.env.env.env.env.env._viewer
+
+        scene = viewer.scn
+        opt = viewer.opt
+
+        width = model.vis.global_.offwidth
+        height = model.vis.global_.offheight
+        print(f"width: {width}, height: {height}")
+
+        # 计算宽高比
+        aspect = width / height
+
+        # 转换为归一化坐标 [0,1]，注意y轴需要反转
+        relx = screen_x / width
+        rely = 1.0 - (screen_y / height)  # OpenGL坐标系y轴反转
+        
+        selpnt = np.zeros((3, 1), dtype=np.float64)
+        geomid_arr = np.array([[-1]], dtype=np.int32)
+        skinid_arr = np.array([[-1]], dtype=np.int32)
+
+        mujoco.mjv_select(
+            model, data, opt, aspect, relx, rely, scene, 
+            selpnt, geomid_arr, skinid_arr
+        )
 
 
     def _get_picked_object_position(self):
