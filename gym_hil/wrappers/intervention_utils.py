@@ -687,6 +687,32 @@ class MouseController(InputController):
         """Set the environment instance for getting gripper position."""
         self.env = env
     
+    def _find_viewer(self):
+        """Dynamically find the viewer in the wrapper chain."""
+        if self.env is None:
+            return None
+        
+        # Try to find viewer by traversing the wrapper chain
+        current = self.env
+        max_depth = 10  # Prevent infinite loops
+        depth = 0
+        
+        while current is not None and depth < max_depth:
+            # Check if current wrapper has viewer
+            if hasattr(current, '_viewer') and current._viewer is not None:
+                return current._viewer
+            
+            # Move to next wrapper
+            if hasattr(current, 'env'):
+                current = current.env
+            elif hasattr(current, 'unwrapped'):
+                current = current.unwrapped
+            else:
+                break
+            depth += 1
+        
+        return None
+    
     def _get_gripper_3d_position(self):
         """Get gripper center position in 3D world space.
         
@@ -724,15 +750,34 @@ class MouseController(InputController):
         model = unwrapped.model if hasattr(unwrapped, 'model') else (unwrapped._model if hasattr(unwrapped, '_model') else None)
         data = unwrapped.data if hasattr(unwrapped, 'data') else (unwrapped._data if hasattr(unwrapped, '_data') else None)
 
+        # 动态查找viewer
+        viewer = self._find_viewer()
+        if viewer is None:
+            return None
 
-        viewer =  self.env.env.env.env.env._viewer
+        if model is None or data is None:
+            return None
 
-        scene = viewer.scn
-        opt = viewer.opt
+        # 创建场景和选项（如果需要）
+        scene = mujoco.MjvScene(model, maxgeom=1000)
+        opt = mujoco.MjvOption()
+        mujoco.mjv_defaultOption(opt)
+        
+        # 更新场景（避免 m->nu changed 警告）
+        cam = mujoco.MjvCamera()
+        mujoco.mjv_defaultCamera(cam)
+        perturb = mujoco.MjvPerturb()
+        mujoco.mjv_updateScene(
+            model, data, opt, perturb, cam,
+            mujoco.mjtCatBit.mjCAT_ALL, scene
+        )
 
         width = model.vis.global_.offwidth
         height = model.vis.global_.offheight
-        print(f"width: {width}, height: {height}")
+        
+        # 如果 offscreen 尺寸为 0，使用默认值
+        if width == 0 or height == 0:
+            width, height = 1200, 900
 
         # 计算宽高比
         aspect = width / height
@@ -749,7 +794,15 @@ class MouseController(InputController):
             model, data, opt, aspect, relx, rely, scene, 
             selpnt, geomid_arr, skinid_arr
         )
-
+        
+        # 检查是否选中了物体
+        geomid = geomid_arr[0, 0]
+        if geomid >= 0:
+            # 获取 geom 的位置
+            geom_pos = data.geom_xpos[geomid].copy()
+            return geom_pos
+        
+        return None
 
     def _get_picked_object_position(self):
         """Get the 3D position of the picked object.
@@ -760,8 +813,8 @@ class MouseController(InputController):
         if self.env is None:
             return None
         
-        # 获取viewer
-        viewer =  self.env.env.env.env.env._viewer
+        # 动态查找viewer
+        viewer = self._find_viewer()
         unwrapped = self.env.unwrapped if hasattr(self.env, 'unwrapped') else self.env
         
         # 获取model和data
