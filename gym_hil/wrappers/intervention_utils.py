@@ -581,15 +581,37 @@ class MouseController(InputController):
         self.side_button_down_pressed = False  # Side button down (x1) pressed
         self.last_selected_body_id = -1  # 上一次选中的geom ID，用于检测变化
         self.is_picking_object = True  # 是否拾取物体模式
+        self.keyboard_listener = None  # Keyboard listener
 
     def start(self):
-        """Start the mouse listener."""
-        from pynput import mouse
+        """Start the mouse and keyboard listeners."""
+        from pynput import mouse, keyboard
 
         def on_move(x, y):
             """Handle mouse movement."""
             # Update current mouse position
             self.current_mouse_pos = (x, y)
+
+        def on_key_press(key):
+            """Handle keyboard key press."""
+            try:
+                if key == keyboard.Key.space:
+                    # 空格键：取消目标物体的选择
+                    self.is_moving_to_target = False
+                    self.target_object_pos = None
+                    self.last_selected_body_id = -1
+                    print("✓ 已取消目标物体选择")
+                elif key == keyboard.Key.enter:
+                    # Enter键：标记为success
+                    self.episode_end_status = "success"
+                    print("✓ Episode标记为成功")
+                elif key == keyboard.Key.esc:
+                    # ESC键：标记为失败
+                    self.episode_end_status = "failure"
+                    print("✗ Episode标记为失败")
+            except AttributeError:
+                # 处理特殊键
+                pass
 
         def on_click(x, y, button, pressed):
             """Handle mouse button clicks."""
@@ -665,23 +687,34 @@ class MouseController(InputController):
         )
         self.listener.start()
 
+        # 启动键盘监听器
+        self.keyboard_listener = keyboard.Listener(
+            on_press=on_key_press
+        )
+        self.keyboard_listener.start()
+
         print("鼠标控制:")
         print("  鼠标中键按下: 切换干预模式开启/关闭")
         if self.is_picking_object:
-            print("  鼠标左键双击: 选择目标物体")
-            print("  鼠标左键单击: 控制末端移动到目标物体")
-            print("  鼠标左键按下: 控制末端移动到目标物体（连续移动）")
+            print("  在 MuJoCo viewer 窗口中双击物体: 选择目标物体")
+            print("  鼠标左键按下并保持: 控制末端移动到选中的目标物体（连续移动）")
         else:
-            print("  鼠标左键单击: 控制末端移动到目标物体")
-            print("  鼠标左键按下: 控制末端移动到目标物体（连续移动）")
+            print("  鼠标左键单击: 选择目标物体")
+            print("  鼠标左键按下并保持: 控制末端移动到目标物体（连续移动）")
         print("  鼠标右键单击: 切换夹爪开合")
         print("  鼠标侧键向上(前进键): 末端持续垂直向上移动")
         print("  鼠标侧键向下(后退键): 末端持续垂直向下移动")
+        print("\n键盘控制:")
+        print("  空格键: 取消目标物体选择")
+        print("  Enter键: 标记Episode为成功")
+        print("  ESC键: 标记Episode为失败")
 
     def stop(self):
-        """Stop the mouse listener."""
+        """Stop the mouse and keyboard listeners."""
         if self.listener and self.listener.is_alive():
             self.listener.stop()
+        if self.keyboard_listener and self.keyboard_listener.is_alive():
+            self.keyboard_listener.stop()
     
     def set_env(self, env):
         """Set the environment instance for getting gripper position."""

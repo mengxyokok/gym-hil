@@ -214,17 +214,11 @@ class InputsControlWrapper(gym.Wrapper):
             else:
                 input_action = np.concatenate([input_action, [1.0]])
 
-        # Check episode ending buttons (only for gamepad/keyboard, not mouse)
-        if self.use_mouse:
-            terminate_episode = False
-            success = False
-            rerecord_episode = False
-        else:
-            # We'll rely on controller.get_episode_end_status() which returns "success", "failure", or None
-            episode_end_status = self.controller.get_episode_end_status()
-            terminate_episode = episode_end_status is not None
-            success = episode_end_status == "success"
-            rerecord_episode = episode_end_status == "rerecord_episode"
+        # Check episode ending status (supported for all input types including mouse)
+        episode_end_status = self.controller.get_episode_end_status()
+        terminate_episode = episode_end_status is not None
+        success = episode_end_status == "success"
+        rerecord_episode = episode_end_status == "rerecord_episode"
 
         return (
             intervention_is_active,
