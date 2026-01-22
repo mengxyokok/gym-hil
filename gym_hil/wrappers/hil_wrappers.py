@@ -185,6 +185,7 @@ class InputsControlWrapper(gym.Wrapper):
         self.use_gripper = use_gripper
         self.input_threshold = input_threshold
         self.use_mouse = use_mouse
+        self.step_count = 0  # Step计数器，用于定期输出信息
         self.controller.start()
 
     def get_input_action(self):
@@ -270,10 +271,27 @@ class InputsControlWrapper(gym.Wrapper):
         info["teleop_action"] = action_intervention
         info["rerecord_episode"] = rerecord_episode
 
+        # 每100步输出一次信息
+        if self.step_count % 100 == 0:
+            print(f"\n[Step {self.step_count}]")
+            print(f"  Reward: {reward:.4f}")
+            print(f"  Intervention: {is_intervention}")
+            print(f"  Action: [{action_intervention[0]:.4f}, {action_intervention[1]:.4f}, {action_intervention[2]:.4f}]" + 
+                  (f", Gripper: {action_intervention[3]:.4f}" if len(action_intervention) > 3 else ""))
+            if terminated or truncated:
+                print(f"  Episode ended: terminated={terminated}, truncated={truncated}")
+            if "succeed" in info:
+                print(f"  Success: {info.get('succeed', False)}")
+
+        # 增加step计数
+        self.step_count += 1
+
         # If episode ended, reset the state
         if terminated or truncated:
             # Add success/failure information to info dict
             info["next.success"] = success
+            # 重置step计数
+            self.step_count = 0
 
             # Auto reset if configured
             if self.auto_reset:
@@ -285,6 +303,7 @@ class InputsControlWrapper(gym.Wrapper):
     def reset(self, **kwargs):
         """Reset the environment."""
         self.controller.reset()
+        self.step_count = 0  # 重置step计数
         return self.env.reset(**kwargs)
 
     def close(self):
