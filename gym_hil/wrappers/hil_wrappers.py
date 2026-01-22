@@ -105,9 +105,9 @@ class EEActionWrapper(gym.ActionWrapper):
 
 class InputsControlWrapper(gym.Wrapper):
     """
-    Wrapper that allows controlling a gym environment with a gamepad.
+    Wrapper that allows controlling a gym environment with input devices (gamepad, keyboard, or mouse).
 
-    This wrapper intercepts the step method and allows human input via gamepad
+    This wrapper intercepts the step method and allows human input via input devices
     to override the agent's actions when desired.
     """
 
@@ -121,7 +121,9 @@ class InputsControlWrapper(gym.Wrapper):
         auto_reset=False,
         input_threshold=0.001,
         use_gamepad=True,
+        use_mouse=False,
         controller_config_path=None,
+        mouse_sensitivity=0.001,
     ):
         """
         Initialize the inputs controller wrapper.
@@ -134,18 +136,31 @@ class InputsControlWrapper(gym.Wrapper):
             use_gripper: Whether to use gripper control
             auto_reset: Whether to auto reset the environment when episode ends
             input_threshold: Minimum movement delta to consider as active input
-            use_gamepad: Whether to use gamepad or keyboard control
+            use_gamepad: Whether to use gamepad (if False and not use_mouse, uses keyboard)
+            use_mouse: Whether to use mouse control
             controller_config_path: Path to the controller configuration JSON file
+            mouse_sensitivity: Mouse movement sensitivity
         """
         super().__init__(env)
         from gym_hil.wrappers.intervention_utils import (
             GamepadController,
             GamepadControllerHID,
             KeyboardController,
+            MouseController,
         )
 
-        # use HidApi for macos
-        if use_gamepad:
+        # Select controller type
+        if use_mouse:
+            self.controller = MouseController(
+                x_step_size=x_step_size,
+                y_step_size=y_step_size,
+                z_step_size=z_step_size,
+                sensitivity=mouse_sensitivity,
+            )
+            # Set environment reference for mouse controller
+            self.controller.set_env(self.env)
+        elif use_gamepad:
+            # use HidApi for macos
             if sys.platform == "darwin":
                 self.controller = GamepadControllerHID(
                     x_step_size=x_step_size,
@@ -169,14 +184,15 @@ class InputsControlWrapper(gym.Wrapper):
         self.auto_reset = auto_reset
         self.use_gripper = use_gripper
         self.input_threshold = input_threshold
+        self.use_mouse = use_mouse
         self.controller.start()
 
-    def get_gamepad_action(self):
+    def get_input_action(self):
         """
-        Get the current action from the gamepad if any input is active.
+        Get the current action from the input device (gamepad, keyboard, or mouse) if any input is active.
 
         Returns:
-            Tuple of (is_active, action, terminate_episode, success)
+            Tuple of (is_active, action, terminate_episode, success, rerecord_episode)
         """
         # Update the controller to get fresh inputs
         self.controller.update()
@@ -186,28 +202,33 @@ class InputsControlWrapper(gym.Wrapper):
 
         intervention_is_active = self.controller.should_intervene()
 
-        # Create action from gamepad input
-        gamepad_action = np.array([delta_x, delta_y, delta_z], dtype=np.float32)
+        # Create action from input device
+        input_action = np.array([delta_x, delta_y, delta_z], dtype=np.float32)
 
         if self.use_gripper:
             gripper_command = self.controller.gripper_command()
             if gripper_command == "open":
-                gamepad_action = np.concatenate([gamepad_action, [2.0]])
+                input_action = np.concatenate([input_action, [2.0]])
             elif gripper_command == "close":
-                gamepad_action = np.concatenate([gamepad_action, [0.0]])
+                input_action = np.concatenate([input_action, [0.0]])
             else:
-                gamepad_action = np.concatenate([gamepad_action, [1.0]])
+                input_action = np.concatenate([input_action, [1.0]])
 
-        # Check episode ending buttons
-        # We'll rely on controller.get_episode_end_status() which returns "success", "failure", or None
-        episode_end_status = self.controller.get_episode_end_status()
-        terminate_episode = episode_end_status is not None
-        success = episode_end_status == "success"
-        rerecord_episode = episode_end_status == "rerecord_episode"
+        # Check episode ending buttons (only for gamepad/keyboard, not mouse)
+        if self.use_mouse:
+            terminate_episode = False
+            success = False
+            rerecord_episode = False
+        else:
+            # We'll rely on controller.get_episode_end_status() which returns "success", "failure", or None
+            episode_end_status = self.controller.get_episode_end_status()
+            terminate_episode = episode_end_status is not None
+            success = episode_end_status == "success"
+            rerecord_episode = episode_end_status == "rerecord_episode"
 
         return (
             intervention_is_active,
-            gamepad_action,
+            input_action,
             terminate_episode,
             success,
             rerecord_episode,
@@ -215,181 +236,34 @@ class InputsControlWrapper(gym.Wrapper):
 
     def step(self, action):
         """
-        Step the environment, using gamepad input to override actions when active.
+        Step the environment, using input device (gamepad, keyboard, or mouse) to override actions when active.
 
-        cfg.
+        Args:
             action: Original action from agent
 
         Returns:
             observation, reward, terminated, truncated, info
         """
-        # Get gamepad state and action
+        # Get input device state and action
         (
             is_intervention,
-            gamepad_action,
+            input_action,
             terminate_episode,
             success,
             rerecord_episode,
-        ) = self.get_gamepad_action()
+        ) = self.get_input_action()
 
         # Update episode ending state if requested
         if terminate_episode:
             logging.info(f"Episode manually ended: {'SUCCESS' if success else 'FAILURE'}")
 
         if is_intervention:
-            action = gamepad_action
+            action = input_action
 
         # Step the environment
         obs, reward, terminated, truncated, info = self.env.step(action)
 
-        # Add episode ending if requested via gamepad
-        terminated = terminated or truncated or terminate_episode
-
-        if success:
-            reward = 1.0
-            logging.info("Episode ended successfully with reward 1.0")
-
-        info["is_intervention"] = is_intervention
-        action_intervention = action
-
-        info["teleop_action"] = action_intervention
-        info["rerecord_episode"] = rerecord_episode
-
-        # If episode ended, reset the state
-        if terminated or truncated:
-            # Add success/failure information to info dict
-            info["next.success"] = success
-
-            # Auto reset if configured
-            if self.auto_reset:
-                obs, reset_info = self.reset()
-                info.update(reset_info)
-
-        return obs, reward, terminated, truncated, info
-
-    def reset(self, **kwargs):
-        """Reset the environment."""
-        self.controller.reset()
-        return self.env.reset(**kwargs)
-
-    def close(self):
-        """Clean up resources when environment closes."""
-        # Stop the controller
-        if hasattr(self, "controller"):
-            self.controller.stop()
-
-        # Call the parent close method
-        return self.env.close()
-
-
-class MouseControlWrapper(gym.Wrapper):
-    """
-    Wrapper that allows controlling a gym environment with mouse input.
-
-    This wrapper intercepts the step method and allows human input via mouse
-    to override the agent's actions when desired.
-    """
-
-    def __init__(
-        self,
-        env,
-        x_step_size=1.0,
-        y_step_size=1.0,
-        z_step_size=1.0,
-        use_gripper=False,
-        auto_reset=False,
-        sensitivity=0.001,
-    ):
-        """
-        Initialize the mouse control wrapper.
-
-        Args:
-            env: The environment to wrap
-            x_step_size: Base movement step size for X axis in meters
-            y_step_size: Base movement step size for Y axis in meters
-            z_step_size: Base movement step size for Z axis in meters
-            use_gripper: Whether to use gripper control
-            auto_reset: Whether to auto reset the environment when episode ends
-            sensitivity: Mouse movement sensitivity
-        """
-        super().__init__(env)
-        from gym_hil.wrappers.intervention_utils import MouseController
-
-        self.controller = MouseController(
-            x_step_size=x_step_size,
-            y_step_size=y_step_size,
-            z_step_size=z_step_size,
-            sensitivity=sensitivity,
-        )
-        
-        # Set environment reference for getting gripper position
-        self.controller.set_env(self.env)
-
-        self.auto_reset = auto_reset
-        self.use_gripper = use_gripper
-        self.controller.start()
-
-    def get_mouse_action(self):
-        """
-        Get the current action from the mouse if any input is active.
-
-        Returns:
-            Tuple of (is_active, action, terminate_episode, success)
-        """
-        # Update the controller to get fresh inputs
-        self.controller.update()
-
-        # Get movement deltas from the controller
-        delta_x, delta_y, delta_z = self.controller.get_deltas()
-
-        intervention_is_active = self.controller.should_intervene()
-
-        # Create action from mouse input
-        mouse_action = np.array([delta_x, delta_y, delta_z], dtype=np.float32)
-
-        if self.use_gripper:
-            gripper_command = self.controller.gripper_command()
-            if gripper_command == "open":
-                mouse_action = np.concatenate([mouse_action, [2.0]])
-            elif gripper_command == "close":
-                mouse_action = np.concatenate([mouse_action, [0.0]])
-            else:
-                mouse_action = np.concatenate([mouse_action, [1.0]])
-
-        return (
-            intervention_is_active,
-            mouse_action,
-            False,  # terminate_episode
-            False,  # success
-            False,  # rerecord_episode
-        )
-
-    def step(self, action):
-        """
-        Step the environment, using mouse input to override actions when active.
-
-        Args:
-            action: Original action from agent
-
-        Returns:
-            observation, reward, terminated, truncated, info
-        """
-        # Get mouse state and action
-        (
-            is_intervention,
-            mouse_action,
-            terminate_episode,
-            success,
-            rerecord_episode,
-        ) = self.get_mouse_action()
-
-        if is_intervention:
-            action = mouse_action
-
-        # Step the environment
-        obs, reward, terminated, truncated, info = self.env.step(action)
-
-        # Add episode ending if requested via mouse
+        # Add episode ending if requested via input device
         terminated = terminated or truncated or terminate_episode
 
         if success:

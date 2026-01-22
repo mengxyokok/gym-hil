@@ -134,7 +134,7 @@ register(
         "env_id": "gym_hil/PandaArrangeBoxesBase-v0",
         "use_viewer": True,
         "gripper_penalty": -0.05,
-        "use_inputs_control": False,  # Mouse control replaces inputs control
+        "use_inputs_control": True,  # Mouse control is now part of InputsControlWrapper
         "use_mouse": True,
         "use_gripper": True,
         "auto_reset": False,
