@@ -36,6 +36,9 @@ def wrap_env(
     reset_delay_seconds: float = 1.0,
     controller_config_path: str = None,
     mouse_sensitivity: float = 0.001,
+    x_step_size: float = 1.0,
+    y_step_size: float = 1.0,
+    z_step_size: float = 1.0,
 ) -> gym.Env:
     """Apply wrappers to an environment based on configuration.
 
@@ -73,9 +76,9 @@ def wrap_env(
         # Apply control wrappers after viewer
         env = InputsControlWrapper(
             env,
-            x_step_size=1.0,
-            y_step_size=1.0,
-            z_step_size=1.0,
+            x_step_size=x_step_size,
+            y_step_size=y_step_size,
+            z_step_size=z_step_size,
             use_gripper=use_gripper,
             auto_reset=auto_reset,
             use_gamepad=use_gamepad if not use_mouse else False,
@@ -104,6 +107,9 @@ def make_env(
     reset_delay_seconds: float = 1.0,
     controller_config_path: str | None = None,
     mouse_sensitivity: float = 0.001,
+    x_step_size: float = 1.0,
+    y_step_size: float = 1.0,
+    z_step_size: float = 1.0,
     **kwargs,
 ) -> gym.Env:
     """Create and wrap an environment in a single function.
@@ -149,4 +155,7 @@ def make_env(
         reset_delay_seconds=reset_delay_seconds,
         controller_config_path=controller_config_path,
         mouse_sensitivity=mouse_sensitivity,
+        x_step_size=x_step_size,
+        y_step_size=y_step_size,
+        z_step_size=z_step_size,
     )

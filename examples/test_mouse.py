@@ -7,7 +7,7 @@ import numpy as np
 import gym_hil  # noqa: F401
 
 # 创建环境（已包含鼠标控制）
-env = gym.make("gym_hil/PandaArrangeBoxesMouse-v0", render_mode="human", max_episode_steps=6000)
+env = gym.make("gym_hil/PandaArrangeBoxesMouse-v0", render_mode="human", max_episode_steps=6000, x_step_size=1.0, y_step_size=1.0, z_step_size=0.2)
 
 # 创建dummy_action（鼠标输入会自动覆盖）
 action = np.zeros(env.action_space.shape[0], dtype=np.float32)

@@ -875,9 +875,14 @@ class MouseController(InputController):
                     # Normalize direction
                     direction_normalized = direction / distance
                     
-                    # Apply step size (move a fixed distance towards target per frame)
-                    step_distance = min(distance, 0.02)  # Max step of 2cm per frame
-                    movement = direction_normalized * step_distance
+                    # # Apply step size (move a fixed distance towards target per frame)
+                    # step_distance = min(distance, 0.02)  # Max step of 2cm per frame
+                    # movement = direction_normalized * step_distance
+
+                    step_x = min(abs(direction[0]), self.x_step_size)
+                    step_y = min(abs(direction[1]), self.y_step_size)
+                    step_z = min(abs(direction[2]), self.z_step_size)
+                    movement = direction_normalized * np.array([step_x, step_y, step_z])
                     
                     delta_x = movement[0]
                     delta_y = movement[1]
@@ -889,11 +894,10 @@ class MouseController(InputController):
                     self.target_object_pos = None
         
         # Add side button Z movement (vertical movement)
-        side_button_step = 0.02  # Movement step per frame when side button is pressed
         if self.side_button_up_pressed:
-            delta_z += side_button_step * self.z_step_size  # Move up (positive Z)
+            delta_z +=  self.z_step_size  # Move up (positive Z)
         if self.side_button_down_pressed:
-            delta_z -= side_button_step * self.z_step_size  # Move down (negative Z)
+            delta_z -= self.z_step_size  # Move down (negative Z)
         
         # If we have movement from target following, return it
         if abs(delta_x) > 0.0001 or abs(delta_y) > 0.0001 or abs(delta_z) > 0.0001:
