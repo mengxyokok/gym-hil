@@ -276,12 +276,11 @@ class InputsControlWrapper(gym.Wrapper):
             print(f"\n[Step {self.step_count}]")
             print(f"  Reward: {reward:.4f}")
             print(f"  Intervention: {is_intervention}")
-            # print(f"  Success: {success}")
-            if success:
+            print(f"  Success: {success}")
+            if terminated and success:
                 print("\n***************** SUCCESS *********************")
             else:
                 print("\n***************** FAILURE *********************")
-
 
         # 增加step计数
         self.step_count += 1
