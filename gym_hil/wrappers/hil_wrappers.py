@@ -264,7 +264,6 @@ class InputsControlWrapper(gym.Wrapper):
         if success:
             reward = 1.0
             logging.info("Episode ended successfully with reward 1.0")
-            print("\n***************** SUCCESS *********************")
 
         info["is_intervention"] = is_intervention
         action_intervention = action
@@ -273,13 +272,15 @@ class InputsControlWrapper(gym.Wrapper):
         info["rerecord_episode"] = rerecord_episode
 
         # 每100步输出一次信息
-        if self.step_count % 100 == 0:
+        if self.step_count % 100 == 0 or terminated:
             print(f"\n[Step {self.step_count}]")
             print(f"  Reward: {reward:.4f}")
             print(f"  Intervention: {is_intervention}")
-            print(f"  Success: {success}")
-            print(f"  Action: [{action_intervention[0]:.4f}, {action_intervention[1]:.4f}, {action_intervention[2]:.4f}]" + 
-                  (f", Gripper: {action_intervention[3]:.4f}" if len(action_intervention) > 3 else ""))
+            # print(f"  Success: {success}")
+            if success:
+                print("\n***************** SUCCESS *********************")
+            else:
+                print("\n***************** FAILURE *********************")
 
 
         # 增加step计数
