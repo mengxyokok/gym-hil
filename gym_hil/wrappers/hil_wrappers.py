@@ -261,10 +261,6 @@ class InputsControlWrapper(gym.Wrapper):
         # Add episode ending if requested via input device
         terminated = terminated or truncated or terminate_episode
 
-        if success:
-            reward = 1.0
-            logging.info("Episode ended successfully with reward 1.0")
-
         info["is_intervention"] = is_intervention
         action_intervention = action
 
