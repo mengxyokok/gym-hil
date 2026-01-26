@@ -192,7 +192,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
             count_blocks = len(distances)
             if count_blocks == 0:
                 return 0.0
-            close_ok = sum(1 for d in distances if d < 0.5)
+            close_ok = sum(1 for d in distances if d < 0.05)
             return close_ok / count_blocks
 
     def _is_success(self) -> bool:
