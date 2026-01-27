@@ -258,6 +258,9 @@ class InputsControlWrapper(gym.Wrapper):
         # Step the environment
         obs, reward, terminated, truncated, info = self.env.step(action)
 
+        if self.unwrapped.spec.max_episode_steps is not None and self.step_count >= self.unwrapped.spec.max_episode_steps-1:
+            truncated = True
+
         # Add episode ending if requested via input device
         terminated = terminated or truncated or terminate_episode
 
@@ -275,9 +278,9 @@ class InputsControlWrapper(gym.Wrapper):
             print(f"  Success: {success}")
             if terminated:
                 if success: 
-                    print("\n***************** SUCCESS *********************")
+                    print("***************** SUCCESS *********************\n")
                 else:
-                    print("\n***************** FAILURE *********************")
+                    print("***************** FAILURE *********************\n")
 
         # 增加step计数
         self.step_count += 1
@@ -285,7 +288,7 @@ class InputsControlWrapper(gym.Wrapper):
         # If episode ended, reset the state
         if terminated or truncated:
             # Add success/failure information to info dict
-            info["next.success"] = success
+            # info["next.success"] = success
             # 重置step计数
             self.step_count = 0
 
