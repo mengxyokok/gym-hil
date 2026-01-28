@@ -26,8 +26,10 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         image_obs: bool = False,
         reward_type: str = "sparse",
+        random_block_position: bool = False,
     ):
         self.reward_type = reward_type
+        self._random_block_position = random_block_position
 
         super().__init__(
             seed=seed,
@@ -104,11 +106,13 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         self.reset_robot()
 
         positions_coords = np.linspace(-self.block_range, self.block_range, self.no_blocks)
-        np.random.shuffle(positions_coords)
+        if self._random_block_position:
+            np.random.shuffle(positions_coords)
 
-        # Sample a new block position
+        # Set block positions
         blocks = [f"block{i}" for i in range(1, self.no_blocks + 1)]
-        np.random.shuffle(blocks)
+        if self._random_block_position:
+            np.random.shuffle(blocks)
 
         for block, pos in zip(blocks, positions_coords, strict=False):
             block_x_coord = self._data.joint(block).qpos[0]
