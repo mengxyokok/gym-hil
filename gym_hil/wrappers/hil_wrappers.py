@@ -273,6 +273,7 @@ class InputsControlWrapper(gym.Wrapper):
         # 每100步输出一次信息
         if self.step_count % 100 == 0 or terminated:
             print(f"\n[Step {self.step_count}]")
+            print(f"  Action: {action}")
             print(f"  Reward: {reward:.4f}")
             print(f"  Intervention: {is_intervention}")
             print(f"  Success: {success}")
