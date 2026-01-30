@@ -56,7 +56,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         agent_box = spaces.Box(-np.inf, np.inf, (agent_dim,), dtype=np.float32)
         env_box = spaces.Box(-np.inf, np.inf, (3,), dtype=np.float32)
         self.no_blocks = self._get_no_boxes()
-        self.block_range = 0.3
+        self.block_range = 0.0
 
         if self.image_obs:
             self.observation_space = spaces.Dict(
