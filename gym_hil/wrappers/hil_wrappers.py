@@ -263,6 +263,7 @@ class InputsControlWrapper(gym.Wrapper):
 
         # Add episode ending if requested via input device
         terminated = terminated or truncated or terminate_episode
+        success=self.unwrapped._is_success()
 
         info["is_intervention"] = is_intervention
         action_intervention = action

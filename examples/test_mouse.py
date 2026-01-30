@@ -33,7 +33,7 @@ try:
         
         # 检查是否成功
         if info.get("succeed", False):
-            print("成功！方块已被抓起")
+            print("成功！")
         
         # Episode结束时重置
         if terminated or truncated:
