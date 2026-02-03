@@ -39,7 +39,7 @@ class PandaPickCubeGymEnv(FrankaGymEnv):
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         image_obs: bool = False,
         reward_type: str = "sparse",
-        random_block_position: bool = False,
+        random_block_position: bool = True,
     ):
         self.reward_type = reward_type
 
