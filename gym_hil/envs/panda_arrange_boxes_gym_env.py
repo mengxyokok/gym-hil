@@ -11,7 +11,7 @@ from gym_hil.mujoco_gym_env import FrankaGymEnv, GymRenderingSpec
 
 _PANDA_HOME = np.asarray((0, -0.785, 0, -2.35, 0, 1.57, np.pi / 4))
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.5, 0], [0.6, 0.5, 0.5]])
-_SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
+_SAMPLING_BOUNDS = np.asarray([[0.2, -0.3], [0.4, 0.3]])
 
 
 class PandaArrangeBoxesGymEnv(FrankaGymEnv):
@@ -26,7 +26,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         image_obs: bool = False,
         reward_type: str = "sparse",
-        random_block_position: bool = False,
+        random_block_position: bool = True,
     ):
         self.reward_type = reward_type
         self._random_block_position = random_block_position
@@ -109,9 +109,11 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         if self._random_block_position:
             if self.no_blocks == 1:
                 # Randomly sample block1 position: x in [0.2, 0.4], y in [-0.3, 0.3]
-                block_x = np.random.uniform(0.2, 0.4)
-                block_y = np.random.uniform(-0.3, 0.3)
-                self._data.joint("block1").qpos[:3] = (block_x, block_y, self._block_z)
+                # block_x = np.random.uniform(0.2, 0.4)
+                # block_y = np.random.uniform(-0.3, 0.3)
+                # self._data.joint("block1").qpos[:3] = (block_x, block_y, self._block_z)
+                block_xy = np.random.uniform(*_SAMPLING_BOUNDS)
+                self._data.joint("block1").qpos[:3] = (*block_xy, self._block_z)
             else:
                 positions_coords = np.linspace(-self.block_range, self.block_range, self.no_blocks)
                 np.random.shuffle(positions_coords)
@@ -143,9 +145,10 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
 
         # Check if block is outside bounds
         block_pos = self._data.sensor("block1_pos").data
-        exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - self.block_range - 0.05)) or np.any(
-            block_pos[:2] > (_SAMPLING_BOUNDS[1] + self.block_range + 0.05)
-        )
+        # exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - self.block_range - 0.05)) or np.any(
+        #     block_pos[:2] > (_SAMPLING_BOUNDS[1] + self.block_range + 0.05)
+        # )
+        exceeded_bounds = False
 
         terminated = bool(success or exceeded_bounds)
 

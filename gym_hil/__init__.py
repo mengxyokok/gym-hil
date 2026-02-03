@@ -94,6 +94,25 @@ register(
 )
 
 register(
+    id="gym_hil/PandaPickCubeMouse-v0",
+    entry_point="gym_hil.wrappers.factory:make_env",
+    max_episode_steps=100,
+    kwargs={
+        "env_id": "gym_hil/PandaPickCubeBase-v0",
+        "use_viewer": True,
+        "gripper_penalty": -0.05,
+        "use_inputs_control": True,  # Mouse control is now part of InputsControlWrapper
+        "use_mouse": True,
+        "use_gripper": True,
+        "auto_reset": False,
+        "mouse_sensitivity": 0.001,
+        "x_step_size": 1.0,
+        "y_step_size": 1.0,
+        "z_step_size": 0.2,
+    },
+)
+
+register(
     id="gym_hil/PandaArrangeBoxes-v0",
     entry_point="gym_hil.wrappers.factory:make_env",
     max_episode_steps=100,

@@ -24,7 +24,7 @@ from gym_hil.mujoco_gym_env import FrankaGymEnv, GymRenderingSpec
 
 _PANDA_HOME = np.asarray((0, 0.195, 0, -2.43, 0, 2.62, 0.785))
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
-_SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
+_SAMPLING_BOUNDS = np.asarray([[0.2, -0.3], [0.4, 0.3]])
 
 
 class PandaPickCubeGymEnv(FrankaGymEnv):
@@ -139,9 +139,10 @@ class PandaPickCubeGymEnv(FrankaGymEnv):
 
         # Check if block is outside bounds
         block_pos = self._data.sensor("block_pos").data
-        exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(
-            block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05)
-        )
+        # exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(
+        #     block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05)
+        # )
+        exceeded_bounds = False
 
         terminated = bool(success or exceeded_bounds)
 
