@@ -56,7 +56,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         agent_box = spaces.Box(-np.inf, np.inf, (agent_dim,), dtype=np.float32)
         env_box = spaces.Box(-np.inf, np.inf, (3,), dtype=np.float32)
         self.no_blocks = self._get_no_boxes()
-        self.block_range = 0.0
+        self.block_range = 0.3
 
         if self.image_obs:
             self.observation_space = spaces.Dict(
@@ -105,19 +105,23 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         # Reset the robot to home position
         self.reset_robot()
 
-        positions_coords = np.linspace(-self.block_range, self.block_range, self.no_blocks)
+        
         if self._random_block_position:
-            np.random.shuffle(positions_coords)
-
-        # Set block positions
-        blocks = [f"block{i}" for i in range(1, self.no_blocks + 1)]
-        if self._random_block_position:
-            np.random.shuffle(blocks)
-
-        for block, pos in zip(blocks, positions_coords, strict=False):
-            block_x_coord = self._data.joint(block).qpos[0]
-            block_coords = np.array([block_x_coord, pos])
-            self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)
+            if self.no_blocks == 1:
+                # Randomly sample block1 position: x in [0.2, 0.4], y in [-0.3, 0.3]
+                block_x = np.random.uniform(0.2, 0.4)
+                block_y = np.random.uniform(-0.3, 0.3)
+                self._data.joint("block1").qpos[:3] = (block_x, block_y, self._block_z)
+            else:
+                positions_coords = np.linspace(-self.block_range, self.block_range, self.no_blocks)
+                np.random.shuffle(positions_coords)
+                blocks = [f"block{i}" for i in range(1, self.no_blocks + 1)]
+                # Set block positions
+                np.random.shuffle(blocks)
+                for block, pos in zip(blocks, positions_coords, strict=False):
+                    block_x_coord = self._data.joint(block).qpos[0]
+                    block_coords = np.array([block_x_coord, pos])
+                    self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)
 
         mujoco.mj_forward(self._model, self._data)
         obs = self._compute_observation()
@@ -192,12 +196,12 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         if self.reward_type == "dense":
             return sum(np.exp(-20 * d) for d in distances)
         else:
-            # return float(all(d < 0.05 for d in distances))
-            count_blocks = len(distances)
-            if count_blocks == 0:
-                return 0.0
-            close_ok = sum(1 for d in distances if d < 0.05)
-            return close_ok / count_blocks
+            return float(all(d < 0.05 for d in distances))
+            # count_blocks = len(distances)
+            # if count_blocks == 0:
+            #     return 0.0
+            # close_ok = sum(1 for d in distances if d < 0.05)
+            # return close_ok / count_blocks
 
     def _is_success(self) -> bool:
         """Check if the task is successfully completed."""
