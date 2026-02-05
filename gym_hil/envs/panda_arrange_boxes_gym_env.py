@@ -26,7 +26,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         image_obs: bool = False,
         reward_type: str = "sparse",
-        random_block_position: bool = True,
+        random_block_position: bool = False,
     ):
         self.reward_type = reward_type
         self._random_block_position = random_block_position

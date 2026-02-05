@@ -8,7 +8,7 @@ import gym_hil  # noqa: F401
 
 # 创建环境（已包含鼠标控制）
 # env = gym.make("gym_hil/PandaArrangeBoxesMouse-v0", render_mode="human", max_episode_steps=100, x_step_size=1.0, y_step_size=1.0, z_step_size=0.2)
-env = gym.make("gym_hil/PandaPickCubeMouse-v0", render_mode="human", max_episode_steps=100, x_step_size=1.0, y_step_size=1.0, z_step_size=0.2)
+env = gym.make("gym_hil/PandaPickCubeMouse-v0", render_mode="human", max_episode_steps=1000,image_obs=True, x_step_size=1.0, y_step_size=1.0, z_step_size=0.2)
 
 # 打印 wrapper 链
 current = env
