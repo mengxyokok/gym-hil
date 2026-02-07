@@ -579,6 +579,8 @@ class MouseController(InputController):
         self.is_moving_to_target = False  # Flag to indicate continuous movement
         self.side_button_up_pressed = False  # Side button up (x2) pressed
         self.side_button_down_pressed = False  # Side button down (x1) pressed
+        self.key_up_pressed = False  # Keyboard up arrow key pressed
+        self.key_down_pressed = False  # Keyboard down arrow key pressed
         self.last_selected_body_id = -1  # 上一次选中的geom ID，用于检测变化
         self.is_picking_object = True  # 是否拾取物体模式
         self.keyboard_listener = None  # Keyboard listener
@@ -609,6 +611,25 @@ class MouseController(InputController):
                     # ESC键：标记为失败
                     self.episode_end_status = "failure"
                     print("✗ Episode标记为失败")
+                elif key == keyboard.Key.up:
+                    # 向上箭头键：末端持续垂直向上移动
+                    self.key_up_pressed = True
+                elif key == keyboard.Key.down:
+                    # 向下箭头键：末端持续垂直向下移动
+                    self.key_down_pressed = True
+            except AttributeError:
+                # 处理特殊键
+                pass
+        
+        def on_key_release(key):
+            """Handle keyboard key release."""
+            try:
+                if key == keyboard.Key.up:
+                    # 向上箭头键释放
+                    self.key_up_pressed = False
+                elif key == keyboard.Key.down:
+                    # 向下箭头键释放
+                    self.key_down_pressed = False
             except AttributeError:
                 # 处理特殊键
                 pass
@@ -689,7 +710,8 @@ class MouseController(InputController):
 
         # 启动键盘监听器
         self.keyboard_listener = keyboard.Listener(
-            on_press=on_key_press
+            on_press=on_key_press,
+            on_release=on_key_release
         )
         self.keyboard_listener.start()
 
@@ -705,6 +727,8 @@ class MouseController(InputController):
         print("  鼠标侧键向上(前进键): 末端持续垂直向上移动")
         print("  鼠标侧键向下(后退键): 末端持续垂直向下移动")
         print("\n键盘控制:")
+        print("  向上箭头键: 末端持续垂直向上移动")
+        print("  向下箭头键: 末端持续垂直向下移动")
         print("  空格键: 取消目标物体选择")
         print("  Enter键: 标记Episode为成功")
         print("  ESC键: 标记Episode为失败")
@@ -930,6 +954,12 @@ class MouseController(InputController):
         if self.side_button_up_pressed:
             delta_z +=  self.z_step_size  # Move up (positive Z)
         if self.side_button_down_pressed:
+            delta_z -= self.z_step_size  # Move down (negative Z)
+        
+        # Add keyboard arrow keys Z movement (vertical movement)
+        if self.key_up_pressed:
+            delta_z += self.z_step_size  # Move up (positive Z)
+        if self.key_down_pressed:
             delta_z -= self.z_step_size  # Move down (negative Z)
         
         # If we have movement from target following, return it
